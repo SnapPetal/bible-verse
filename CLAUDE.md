@@ -38,7 +38,7 @@ Serverless REST API returning random Bible verses in CSB (English) and Greek tra
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/aws-deploy.yml`): push to `main` → `mvn clean verify` → `cdk deploy`. AWS auth uses GitHub OIDC and the `AWS_ROLE_TO_ASSUME` repository secret.
+GitHub Actions (`.github/workflows/deploy.yml`): push to `main` → `mvn clean verify` → `cdk deploy`. AWS auth uses GitHub OIDC and the `AWS_ROLE_TO_ASSUME` repository secret.
 
 ## Code Formatting
 

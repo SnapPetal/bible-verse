@@ -1,0 +1,51 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'corretto'
+          java-version: '25'
+          cache: 'maven'
+      - name: Build with Maven
+        run: mvn clean verify
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: github-actions-bibleverse-deploy
+          aws-region: 'us-east-1'
+      - name: Deploy cdk
+        working-directory: .infrastructure
+        run: |
+          yarn --frozen-lockfile || yarn
+          # If a previous deployment was cancelled mid-update, wait for CloudFormation stacks to complete
+          status=$(aws cloudformation describe-stacks --stack-name "bible-verse-stack" --query "Stacks[0].StackStatus" --output text 2>/dev/null || true)
+          if [ "$status" = "UPDATE_IN_PROGRESS" ]; then
+            echo "Stack bible-verse-stack is UPDATE_IN_PROGRESS. Waiting for completion..."
+            aws cloudformation wait stack-update-complete --stack-name "bible-verse-stack" || true
+          fi
+          yarn cdk synth
+          yarn cdk deploy --all --require-approval never
