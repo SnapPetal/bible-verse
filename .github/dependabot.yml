@@ -1,17 +1,88 @@
-
 version: 2
 updates:
+  # Backend Java / Maven dependencies
   - package-ecosystem: "maven"
     directory: "/"
     schedule:
-      interval: "daily"
-      
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "America/Chicago"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "backend"
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+    groups:
+      spring:
+        patterns:
+          - "org.springframework*"
+      aws-sdk:
+        patterns:
+          - "software.amazon.awssdk*"
+      testing:
+        patterns:
+          - "org.junit*"
+          - "org.mockito*"
+          - "org.assertj*"
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Infrastructure dependencies
   - package-ecosystem: "npm"
     directory: "/.infrastructure"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "America/Chicago"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "infrastructure"
+    commit-message:
+      prefix: "chore(infra)"
+      prefix-development: "chore(deps-dev)"
+    groups:
+      # Group AWS packages (CDK and SDK) together to prevent lockfile conflicts
+      aws:
+        patterns:
+          - "aws-cdk*"
+          - "@aws-cdk/*"
+          - "@aws-sdk/*"
+      testing:
+        patterns:
+          - "jest*"
+          - "@types/jest*"
+          - "ts-jest*"
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # ts-node does not support TypeScript 7.x yet (aligned on 6.x)
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "America/Chicago"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions:
+        patterns:
+          - "*"
