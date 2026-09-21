@@ -1096,10 +1096,10 @@ argparse@^1.0.7:
   dependencies:
     sprintf-js "~1.0.2"
 
-aws-cdk-lib@2.269.0:
-  version "2.269.0"
-  resolved "https://registry.yarnpkg.com/aws-cdk-lib/-/aws-cdk-lib-2.269.0.tgz#da6695c632fca8864abc384808996360c36cbbfe"
-  integrity sha512-Ob2EmB3faXGUMjXYhxsMvktZtaojr/aaeLqFjq9WbO+vOX1mx49OQPVB6NNNLfNKWF993Bb6nr4rsPblpUAJww==
+aws-cdk-lib@2.270.0:
+  version "2.270.0"
+  resolved "https://registry.yarnpkg.com/aws-cdk-lib/-/aws-cdk-lib-2.270.0.tgz#a1729e73d5b2a0b36f2d09fdf43263331454e840"
+  integrity sha512-xoO9FEqcVTTK39N6n+LxvAAsS5WZSGX/p+uv3l2W+LXDEIWctq6VECdluuFwdXnbyf4v4eIxo2btrkUepnEy0Q==
   dependencies:
     "@aws-cdk/asset-awscli-v1" "2.2.292"
     "@aws-cdk/asset-node-proxy-agent-v6" "^2.1.2"
@@ -1117,10 +1117,10 @@ aws-cdk-lib@2.269.0:
     semver "^7.8.5"
     yaml "1.10.3"
 
-aws-cdk@2.1141.0:
-  version "2.1141.0"
-  resolved "https://registry.yarnpkg.com/aws-cdk/-/aws-cdk-2.1141.0.tgz#e3c26212437cebbf0ad9c142d32007930837c1aa"
-  integrity sha512-RIKueAoFNYUot/VmlUzPUbecxNCtLzJFqpy/O+vTpjrvDn4k2Uiu9Y/QlVlQzaSJw0qqNNY6ldusJVdkX8aBNA==
+aws-cdk@2.1142.0:
+  version "2.1142.0"
+  resolved "https://registry.yarnpkg.com/aws-cdk/-/aws-cdk-2.1142.0.tgz#d69b9dd3a30118ef903f3c471f5afe401be88036"
+  integrity sha512-gNOeii+avTJmOwfR8tVgraZ5A2EBC/529EXg7e+yBp8Zl608dAv5CtFRoJt8QoKiruiCwYr4HF6ClNAse/NkSg==
 
 babel-jest@30.5.2:
   version "30.5.2"
