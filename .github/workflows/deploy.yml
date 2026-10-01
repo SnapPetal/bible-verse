@@ -17,6 +17,8 @@ jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
+    # AWS_ROLE_TO_ASSUME comes from this environment; the role trusts only it.
+    environment: production
     steps:
       - name: Checkout repo
         uses: actions/checkout@v7
