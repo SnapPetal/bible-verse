@@ -42,7 +42,7 @@ jobs:
       - name: Deploy cdk
         working-directory: .infrastructure
         run: |
-          yarn --frozen-lockfile || yarn
+          yarn install --frozen-lockfile
           # If a previous deployment was cancelled mid-update, wait for CloudFormation stacks to complete
           status=$(aws cloudformation describe-stacks --stack-name "bible-verse-stack" --query "Stacks[0].StackStatus" --output text 2>/dev/null || true)
           if [ "$status" = "UPDATE_IN_PROGRESS" ]; then

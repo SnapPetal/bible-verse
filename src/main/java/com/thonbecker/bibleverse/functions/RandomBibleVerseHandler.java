@@ -1,8 +1,9 @@
 package com.thonbecker.bibleverse.functions;
 
 import com.thonbecker.bibleverse.model.RandomBibleVerseResponse;
+import com.thonbecker.bibleverse.service.ConditionalOnRandomVerse;
 import com.thonbecker.bibleverse.service.FileService;
-import java.io.*;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +19,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
 @Component
+@ConditionalOnRandomVerse
 @Slf4j
 public class RandomBibleVerseHandler implements Supplier<RandomBibleVerseResponse> {
     private final List<IndexedVerse> verses;
@@ -102,7 +104,14 @@ public class RandomBibleVerseHandler implements Supplier<RandomBibleVerseRespons
 
     @Override
     public RandomBibleVerseResponse get() {
-        IndexedVerse verse = verses.get(ThreadLocalRandom.current().nextInt(verses.size()));
+        return toResponse(verses.get(ThreadLocalRandom.current().nextInt(verses.size())));
+    }
+
+    List<IndexedVerse> indexedVerses() {
+        return verses;
+    }
+
+    RandomBibleVerseResponse toResponse(IndexedVerse verse) {
         Map<String, String> verseText;
         if (verse.greek != null) {
             verseText = Map.of("CSB", verse.csb, "Greek", verse.greek);
@@ -162,7 +171,7 @@ public class RandomBibleVerseHandler implements Supplier<RandomBibleVerseRespons
         for (int i = 0; i < csbBooks.getLength(); i++) {
             Element csbBook = (Element) csbBooks.item(i);
             String bookNum = csbBook.getAttribute("number");
-            String bookName = BOOK_NAMES.get(Integer.parseInt(bookNum) - 1);
+            String bookName = bookName(bookNum);
             Map<String, Map<String, String>> greekChapters = greekIndex.get(bookNum);
 
             NodeList csbChapters = csbBook.getElementsByTagName("chapter");
@@ -180,8 +189,24 @@ public class RandomBibleVerseHandler implements Supplier<RandomBibleVerseRespons
                 }
             }
         }
+        if (result.isEmpty()) {
+            throw new IllegalStateException("Bible XML contained no verses");
+        }
         return List.copyOf(result);
     }
 
-    private record IndexedVerse(String book, String chapter, String number, String csb, String greek) {}
+    private static String bookName(String bookNum) {
+        int bookIndex;
+        try {
+            bookIndex = Integer.parseInt(bookNum) - 1;
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException("Invalid Bible book number: " + bookNum, e);
+        }
+        if (bookIndex < 0 || bookIndex >= BOOK_NAMES.size()) {
+            throw new IllegalStateException("Unknown Bible book number: " + bookNum);
+        }
+        return BOOK_NAMES.get(bookIndex);
+    }
+
+    record IndexedVerse(String book, String chapter, String number, String csb, String greek) {}
 }

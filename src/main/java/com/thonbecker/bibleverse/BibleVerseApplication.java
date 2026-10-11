@@ -15,7 +15,7 @@ public class BibleVerseApplication {
     public static void main(String[] args) {
         log.info("==> Starting: BibleVerseApplication");
         if (!ObjectUtils.isEmpty(args)) {
-            log.info("==>  args: " + Arrays.asList(args));
+            log.info("==>  args: {}", Arrays.asList(args));
         }
         SpringApplication.run(BibleVerseApplication.class, args);
     }
