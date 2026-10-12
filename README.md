@@ -18,7 +18,7 @@ BibleVerse is a cloud-native application that provides simple API endpoints to f
 
 ## Technology Stack
 
-- **Backend Framework**: Spring Boot 4.1.0
+- **Backend Framework**: Spring Boot 4.1
 - **Language**: Java 25
 - **Cloud Platform**: AWS
   - Lambda (serverless compute with SnapStart)
@@ -178,6 +178,7 @@ BibleVerse/
 │   │   ├── AboutResponse.java
 │   │   └── RandomBibleVerseResponse.java
 │   └── service/            # Business logic
+│       ├── BibleVerseProperties.java
 │       └── FileService.java
 ├── .infrastructure/        # AWS CDK code
 │   └── lib/
@@ -201,44 +202,20 @@ Format code using Spotless:
 mvn spotless:apply
 ```
 
-## Recent Improvements
+## JSON responses
 
-### API Gateway Content Type Fix
-
-**Issue**: API Gateway was not returning `Content-Type: application/json` headers.
-
-**Solution**: Added response parameters to HTTP Lambda integrations in the CDK stack:
-
-```typescript
-new HttpLambdaIntegration('Integration', function, {
-  responseParameters: {
-    '200': {
-      'Content-Type': "'application/json'"
-    },
-    '500': {
-      'Content-Type': "'application/json'"
-    }
-  }
-})
-```
-
-### Handler Improvements
-
-- **AboutHandler**: Now returns `AboutResponse` object instead of manually serialized string
-- **Consistent JSON handling**: Both handlers now use Spring's automatic JSON serialization
-- **Better error handling**: Added proper error response configurations
+Both handlers return Java objects. Spring Cloud Function serializes them to JSON for API Gateway.
 
 ## Monitoring and Logs
 
 - **CloudWatch Logs**: Lambda function logs with 3-day retention
-- **API Gateway Access Logs**: HTTP request/response logging
-- **Health Monitoring**: `/about` endpoint for service health checks
+- **Health Monitoring**: `/about` returns build details (`packageName`, `version`, `time`) and a `healthy` status. It does not check S3.
 
 ## Security
 
 - **HTTPS Only**: All endpoints use SSL/TLS encryption
 - **CORS Configuration**: Properly configured for web applications
-- **S3 Security**: Private bucket with IAM-based access control
+- **S3 Security**: Private bucket with SSE-S3 encryption, TLS 1.2 or newer, and IAM access limited to the random-verse function
 - **Lambda Security**: Minimal IAM permissions following least privilege principle
 
 ## Bible Data Sources

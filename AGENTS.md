@@ -31,7 +31,7 @@ Serverless REST API returning random Bible verses in CSB (English) and Greek tra
 **Key design decisions:**
 - Bible XML files (CSB + Greek) are stored in S3, loaded once at Lambda init, and pre-indexed into `List<Book>` / `Chapter` / `Verse` records for O(1) random access. DOM documents are discarded after indexing.
 - SnapStart is enabled on the RandomBibleVerse Lambda with a published version + `live` alias. The API Gateway routes to the alias, not `$LATEST`.
-- Two Spring Cloud Functions registered via `SPRING_CLOUD_FUNCTION_DEFINITION` env var: `randomBibleVerseHandler` (default route) and `aboutHandler` (`/about`).
+- Two Lambdas share the shaded JAR. Each sets `SPRING_CLOUD_FUNCTION_DEFINITION` to one function: `randomBibleVerseHandler` (`GET /`) and `aboutHandler` (`GET /about`). The about function does not load the Bible XML.
 - The Java app must be built (`mvn clean verify`) before `cdk deploy` since CDK references the JAR directly.
 
 **Data files:** `.infrastructure/lib/data/files/{csb,greek}/bible.xml` — deployed to S3 via `BucketDeployment`.
