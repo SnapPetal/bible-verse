@@ -2,3 +2,4 @@
 java = "corretto-25"
 maven = "3.9"
 node = "24"
+pnpm = "10.34.7"
