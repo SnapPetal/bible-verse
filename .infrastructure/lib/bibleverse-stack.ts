@@ -59,6 +59,17 @@ export class BibleVerseStack extends Stack {
       version: aboutVersion,
     });
 
+    const bucket = new s3.Bucket(this, 'BibleVerseBucket', {
+      bucketName: 'bible-verse-data-files',
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      minimumTLSVersion: 1.2,
+      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_ENFORCED,
+      removalPolicy: RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+    });
+
     const randomBibleVerseFunction = new lambda.Function(this, 'RandomBibleVerseFunction', {
       runtime: lambda.Runtime.JAVA_25,
       memorySize: 1024,
@@ -68,7 +79,8 @@ export class BibleVerseStack extends Stack {
       handler: 'org.springframework.cloud.function.adapter.aws.FunctionInvoker',
       code: lambda.Code.fromAsset('../target/bibleverse-2.0.0-aws.jar'),
       environment: {
-        'SPRING_CLOUD_FUNCTION_DEFINITION': 'randomBibleVerseHandler'
+        'SPRING_CLOUD_FUNCTION_DEFINITION': 'randomBibleVerseHandler',
+        'BIBLEVERSE_S3_BUCKET_NAME': bucket.bucketName,
       },
     });
 
@@ -79,21 +91,13 @@ export class BibleVerseStack extends Stack {
       version: randomBibleVerseVersion,
     });
 
-    const bucket = new s3.Bucket(this, 'BibleVerseBucket', {
-      bucketName: 'bible-verse-data-files',
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_ENFORCED,
-      removalPolicy: RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
-    });
-
     const deployment = new s3deploy.BucketDeployment(this, 'DeployBibleVerse', {
       sources: [s3deploy.Source.asset(path.join(__dirname, 'data', 'files'))],
       destinationBucket: bucket,
     });
 
-    deployment.deployedBucket.grantRead(aboutFunction);
     deployment.deployedBucket.grantRead(randomBibleVerseFunction);
+    randomBibleVerseFunction.node.addDependency(deployment);
 
     const dn = new DomainName(this, 'DomainNameBibleVerse', {
       domainName,
