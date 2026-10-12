@@ -26,12 +26,19 @@ jobs:
           cache: 'maven'
       - name: Build with Maven
         run: mvn clean verify
-      - uses: actions/setup-node@v7
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: .infrastructure/package.json
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
         with:
           node-version: "24"
+          cache: pnpm
+          cache-dependency-path: .infrastructure/pnpm-lock.yaml
       - name: Install and test infrastructure
         working-directory: .infrastructure
         run: |
-          yarn --frozen-lockfile || yarn
-          yarn test
-          yarn cdk synth
+          pnpm install --frozen-lockfile
+          pnpm test
+          pnpm cdk synth

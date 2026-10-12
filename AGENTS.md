@@ -13,14 +13,14 @@ This file provides guidance to coding agents working with code in this repositor
 
 ### CDK Infrastructure (from `.infrastructure/`)
 
-- `yarn install && yarn cdk synth` — synthesize CloudFormation
-- `yarn cdk deploy --all` — deploy to AWS
-- `yarn cdk diff` — preview changes
-- `npm run test` — run CDK Jest tests
+- `pnpm install && pnpm cdk synth` — synthesize CloudFormation
+- `pnpm cdk deploy --all` — deploy to AWS
+- `pnpm cdk diff` — preview changes
+- `pnpm test` — run CDK Jest tests
 
 ### Toolchain
 
-Managed via `mise.toml`: Java Corretto 25, Maven 3.9, Node.js 24.
+Managed via `mise.toml`: Java Corretto 25, Maven 3.9, Node.js 24, pnpm 10.
 
 ## Architecture
 

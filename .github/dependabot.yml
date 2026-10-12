@@ -32,7 +32,7 @@ updates:
           - "minor"
           - "patch"
 
-  # Infrastructure dependencies
+  # Infrastructure dependencies. Dependabot's npm ecosystem reads pnpm-lock.yaml.
   - package-ecosystem: "npm"
     directory: "/.infrastructure"
     schedule:

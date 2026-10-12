@@ -30,9 +30,16 @@ jobs:
           cache: 'maven'
       - name: Build with Maven
         run: mvn clean verify
-      - uses: actions/setup-node@v7
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: .infrastructure/package.json
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
         with:
           node-version: "24"
+          cache: pnpm
+          cache-dependency-path: .infrastructure/pnpm-lock.yaml
       - name: Configure aws credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
@@ -42,12 +49,12 @@ jobs:
       - name: Deploy cdk
         working-directory: .infrastructure
         run: |
-          yarn --frozen-lockfile || yarn
+          pnpm install --frozen-lockfile
           # If a previous deployment was cancelled mid-update, wait for CloudFormation stacks to complete
           status=$(aws cloudformation describe-stacks --stack-name "bible-verse-stack" --query "Stacks[0].StackStatus" --output text 2>/dev/null || true)
           if [ "$status" = "UPDATE_IN_PROGRESS" ]; then
             echo "Stack bible-verse-stack is UPDATE_IN_PROGRESS. Waiting for completion..."
             aws cloudformation wait stack-update-complete --stack-name "bible-verse-stack" || true
           fi
-          yarn cdk synth
-          yarn cdk deploy --all --require-approval never
+          pnpm cdk synth
+          pnpm cdk deploy --all --require-approval never

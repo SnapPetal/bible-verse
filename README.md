@@ -95,8 +95,8 @@ All endpoints return:
 - **Java 25** (Corretto)
 - **Maven 3.9** or higher
 - **Node.js 24** or higher (for CDK)
+- **pnpm 10** (Corepack reads `packageManager` in `.infrastructure/package.json`; `mise install` provides the same pin)
 - **AWS CLI** configured with appropriate permissions
-- **AWS CDK** installed globally: `npm install -g aws-cdk`
 
 ### Local Development
 
@@ -125,8 +125,8 @@ All endpoints return:
 
    ```bash
    cd .infrastructure
-   npm install
-   cdk synth
+   pnpm install
+   pnpm cdk synth
    ```
 
 ### Deployment
@@ -135,7 +135,7 @@ All endpoints return:
 
    ```bash
    cd .infrastructure
-   cdk deploy
+   pnpm cdk deploy
    ```
 2. **Verify deployment**
 
