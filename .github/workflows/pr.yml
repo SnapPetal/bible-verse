@@ -18,24 +18,29 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v7
-      - name: Set up Java
-        uses: actions/setup-java@v6
+      - name: Install toolchain
+        uses: jdx/mise-action@v5
         with:
-          distribution: 'corretto'
-          java-version: '25'
-          cache: 'maven'
+          cache: true
+      - name: Resolve pnpm store path
+        id: pnpm-store
+        run: echo "path=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+      - name: Cache Maven repository
+        uses: actions/cache@v6
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+      - name: Cache pnpm store
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('mise.toml', '.infrastructure/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
       - name: Build with Maven
         run: mvn clean verify
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          package_json_file: .infrastructure/package.json
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-          cache: pnpm
-          cache-dependency-path: .infrastructure/pnpm-lock.yaml
       - name: Install and test infrastructure
         working-directory: .infrastructure
         run: |

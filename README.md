@@ -91,11 +91,7 @@ All endpoints return:
 
 ### Prerequisites
 
-- **mise** for local toolchain management
-- **Java 25** (Corretto)
-- **Maven 3.9** or higher
-- **Node.js 24** or higher (for CDK)
-- **pnpm 10** (Corepack reads `packageManager` in `.infrastructure/package.json`; `mise install` provides the same pin)
+- **mise**, which installs Java, Maven, Node.js, and pnpm from `mise.toml` (`mise install`)
 - **AWS CLI** configured with appropriate permissions
 
 ### Local Development
@@ -164,7 +160,7 @@ The project uses several tools to maintain code quality:
 
 ### CI/CD
 
-GitHub Actions deploys on pushes to `main`. AWS authentication uses GitHub OIDC and the `AWS_ROLE_TO_ASSUME` repository secret, which points to the deploy role ARN.
+GitHub Actions installs the toolchain from `mise.toml` with `jdx/mise-action`, then deploys on pushes to `main`. AWS authentication uses GitHub OIDC and the `AWS_ROLE_TO_ASSUME` repository secret, which points to the deploy role ARN. The pnpm version in `mise.toml` matches `packageManager` in `.infrastructure/package.json`.
 
 ### Project Structure
 

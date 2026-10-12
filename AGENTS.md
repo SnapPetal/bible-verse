@@ -20,7 +20,7 @@ This file provides guidance to coding agents working with code in this repositor
 
 ### Toolchain
 
-Managed via `mise.toml`: Java Corretto 25, Maven 3.9, Node.js 24, pnpm 10.
+`mise.toml` is the only tool-version source: Java Corretto 25, Maven 3.9, Node.js 24, pnpm 10.34.7. CI installs that file with `jdx/mise-action`. `packageManager` in `.infrastructure/package.json` is the same pnpm version.
 
 ## Architecture
 
@@ -38,7 +38,7 @@ Serverless REST API returning random Bible verses in CSB (English) and Greek tra
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/deploy.yml`): push to `main` → `mvn clean verify` → `cdk deploy`. AWS auth uses GitHub OIDC and the `AWS_ROLE_TO_ASSUME` repository secret.
+GitHub Actions (`.github/workflows/pr.yml` and `deploy.yml`) install tools from `mise.toml` with `jdx/mise-action`. Push to `main` runs `mvn clean verify`, then `cdk deploy`. AWS auth uses GitHub OIDC and the `AWS_ROLE_TO_ASSUME` repository secret.
 
 ## Code Formatting
 
