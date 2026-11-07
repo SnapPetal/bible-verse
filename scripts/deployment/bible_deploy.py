@@ -71,6 +71,8 @@ def java_active():
  for name in ['retention_applied','entry_replaced','executor_permissions_approved','asset_policy_verified']:
   need(c.get(name) is True,'Unaccepted two-app prerequisite: '+name)
  need(re.fullmatch('[a-f0-9]{64}',c.get('asset_policy_sha256','')),'Missing private asset policy pin')
+ import executor_policy_pair
+ executor_policy_pair.verify_activation(c)
  # Per-release source/template/asset/stage pins and actor identity are checked by
  # authenticated dispatch, derive(), live observations and exact change-set gates.
  # No assertion about attached boundaries or helper/data recovery is made here.
@@ -218,6 +220,8 @@ def main():
  ap=argparse.ArgumentParser(); ap.add_argument('mode',choices=['verify','verify-auth','identity-entry','publish','prepare','execute','reconcile']); ap.add_argument('--input',type=Path); ap.add_argument('--out',type=Path,default=Path('deployment-receipts')); ap.add_argument('--change-set'); a=ap.parse_args()
  if a.mode=='verify':
   need(isinstance(load(CONFIG).get('enabled'),bool),'Invalid activation state')
+  import executor_policy_pair
+  executor_policy_pair.verify_source_pair()
   print('Offline verification complete. No AWS calls made; activation state unchanged.')
  elif a.mode=='verify-auth':verify_auth(a.out)
  elif a.mode=='identity-entry':save(a.out/'entry-identity.json',actor('GitHubActionsBibleVerseProdDeploy'))
