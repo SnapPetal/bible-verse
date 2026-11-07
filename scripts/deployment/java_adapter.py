@@ -101,6 +101,16 @@ class Adapter:
    if phase!='phase2':
     mapped=self.t.aws('cloudformation','describe-stack-resource',stack_name=d.STACK,logical_resource_id=old['logical_id'])['StackResourceDetail'];d.need(mapped['LogicalResourceId']==old['logical_id'] and mapped['ResourceType']=='AWS::Lambda::Version','Wrong old CFN mapping');mapping=mapped['PhysicalResourceId']
    old_config=self.t.aws('lambda','get-function-configuration',function_name=info['name'],qualifier=old['version'])
+   latest=self.t.aws('lambda','get-function-configuration',function_name=info['name'])
+   d.need(latest.get('FunctionArn')==f'arn:aws:lambda:{d.REGION}:{d.ACCOUNT}:function:{info["name"]}' and latest.get('Version')=='$LATEST','Wrong unqualified function observation')
+   d.need(latest.get('State')=='Active' and latest.get('LastUpdateStatus')=='Successful','Unqualified function update not ready')
+   expected_latest=old['code_sha256'] if phase=='baseline' else plan['assets'][fid]['sha256_base64']
+   d.need(latest.get('CodeSha256')==expected_latest,'Unqualified code differs from expected stage')
+   for key in ['Runtime','Handler','Architectures','MemorySize','Timeout','Environment','Layers','KMSKeyArn','VpcConfig','DeadLetterConfig','TracingConfig','EphemeralStorage','FileSystemConfigs','LoggingConfig','Role']:
+    d.need(latest.get(key)==old_config.get(key),'Unqualified runtime configuration drift: '+key)
+   d.need(all(key in latest for key in ['Runtime','Handler','MemorySize','Timeout','Role']),'Incomplete unqualified configuration')
+   d.need('Error' not in latest.get('Environment',{}),'Unqualified Environment verification unavailable')
+   d.need(latest.get('SnapStart',{}).get('ApplyOn')==old_config.get('SnapStart',{}).get('ApplyOn')=='PublishedVersions','Unqualified SnapStart configuration drift')
    alias=self.t.aws('lambda','get-alias',function_name=info['name'],name='live')
    x={'old':old_config,'alias':alias,'old_logical_id':old['logical_id'],'old_physical_id':mapping,'old_mapping_source':'recorded-baseline' if phase=='phase2' else 'current-stack'}
    if phase!='baseline':

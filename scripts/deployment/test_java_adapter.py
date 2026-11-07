@@ -40,6 +40,7 @@ class Cloud:
   return str(ident),digest
  def config(self,name,qualifier):
   fid=next(fid for fid,v in j.FUNCTIONS.items() if v['name']==name);e=observation(self.p,'phase1')['functions'][fid];old=self.p['review']['old_versions'][fid]['version'];result=copy.deepcopy(e['old'] if qualifier==old else e['new'])
+  result['SnapStart']['ApplyOn']='PublishedVersions'
   result.update(Runtime='java25',Handler='org.springframework.cloud.function.adapter.aws.FunctionInvoker',MemorySize=1024,Timeout=30,Environment={'Variables':{'fixture':'private-not-persisted'}})
   if qualifier!=old and self.bad:
    if self.bad=='wrong_version':result['Version']='999'
@@ -59,7 +60,12 @@ class Cloud:
     receipt=next(x for x in list(self.p['assets'].values())+list(self.receipts.values()) if x['key']==kw['key'])
     return {'ServerSideEncryption':'AES256','ContentLength':receipt['bytes'],'ChecksumSHA256':receipt['sha256_base64'],'ChecksumType':'FULL_OBJECT','VersionId':receipt['version_id']}
   if service=='lambda':
-   if operation=='get-function-configuration':return self.config(kw['function_name'],kw['qualifier'])
+   if operation=='get-function-configuration':
+    if 'qualifier' in kw:return self.config(kw['function_name'],kw['qualifier'])
+    fid=next(fid for fid,v in j.FUNCTIONS.items() if v['name']==kw['function_name']);old=self.p['review']['old_versions'][fid]['version'];result=self.config(kw['function_name'],old if self.live=='baseline' else str(int(old)+1));result.update(FunctionArn=f'arn:aws:lambda:{d.REGION}:{d.ACCOUNT}:function:{kw["function_name"]}',Version='$LATEST',LastUpdateStatus='Successful')
+    if self.bad=='latest_drift':result['MemorySize']=2048
+    if self.bad=='latest_hash':result['CodeSha256']='wrong'
+    return result
    if operation=='get-alias':
     e=observation(self.p,'phase2' if self.live=='phase2' else 'baseline','new' if self.live=='phase2' else 'old');fid=next(fid for fid,v in j.FUNCTIONS.items() if v['name']==kw['function_name']);return e['functions'][fid]['alias']
   if service=='cloudformation':
@@ -145,6 +151,11 @@ class Integrated(unittest.TestCase):
   self.cloud.aws=denied
   with self.assertRaises(RuntimeError):self.adapter.submit(c)
   self.assertEqual(self.cloud.mutations,['create-change-set'])
+ def test_latest_drift_blocks_before_any_mutation(self):
+  for bad in ['latest_drift','latest_hash']:
+   self.cloud.bad=bad
+   with self.subTest(bad=bad),self.assertRaises(ValueError):self.stage()
+   self.assertEqual(self.cloud.mutations,[])
  def test_no_submit_before_uploaded_artifact(self):
   with self.assertRaises(KeyError):self.adapter.read_artifact('999','sha256:'+'0'*64,'java-intent')
   self.assertFalse(self.cloud.mutations)
