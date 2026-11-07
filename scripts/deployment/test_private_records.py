@@ -57,9 +57,12 @@ class Privacy(unittest.TestCase):
    put=next(kw for op,kw in seen if op=='put-object');self.assertEqual(put['if_none_match'],'*');self.assertEqual(put['storage_class'],'STANDARD');self.assertEqual(put['key'],expected['key'])
  def test_workflow_artifacts_are_references_not_records(self):
   root=Path(__file__).resolve().parents[2]
-  for name in ['deploy.yml','java-release.yml']:
+  for name in ['java-release.yml']:
    text=(root/'.github/workflows'/name).read_text();paths=re.findall(r'^          path: (.+)$',text,re.M);self.assertTrue(paths)
    self.assertTrue(all(x.endswith('/record-ref.json') for x in paths));self.assertIn('./.github/actions/private-checkpoint',text)
+  retired=(root/'.github/workflows/deploy.yml').read_text()
+  for forbidden in ['upload-artifact','configure-aws-credentials','private-checkpoint','  push:','cdk deploy']:self.assertNotIn(forbidden,retired)
+  self.assertIn('workflow_dispatch:',retired);self.assertIn('python -m unittest',retired)
   self.assertIn('.infrastructure/deployment/publication-plan.json',(root/'.gitignore').read_text())
  def test_mock_public_archives_store_only_private_refs(self):
   cloud=Cloud(plan());record={'kind':'java-review','plan_sha256':'a'*64,'run_id':101,'private_template':{'Environment':'PRIVATE-SENTINEL'}};ident,_=cloud.upload_model(record)
