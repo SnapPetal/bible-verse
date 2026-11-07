@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 import tomllib
+import zipfile
 
 
 def require(ok,message):
@@ -42,6 +43,26 @@ def check_untracked(paths):
         require(path.startswith(output_roots) or bytecode is not None,'Untracked or ignored build input: '+path)
 
 
+def build_environment(base,epoch,stamp):
+    require(timestamp(epoch)==stamp,'Properties date must equal immutable commit timestamp')
+    for key in ['JAVA_TOOL_OPTIONS','JDK_JAVA_OPTIONS','_JAVA_OPTIONS']:
+        require(not base.get(key,''),'Echoing JVM options are not permitted')
+    for key in ['MAVEN_OPTS']:
+        require('java.properties.date' not in base.get(key,''),'Conflicting Properties date override')
+    # Properties caches this at JVM startup; a Maven -D user property is too late.
+    opts=(base.get('MAVEN_OPTS','').strip()+' -Djava.properties.date='+stamp).strip()
+    return {**base,'SOURCE_DATE_EPOCH':epoch,'TZ':'UTC','LC_ALL':'C','LANG':'C','MAVEN_OPTS':opts}
+
+
+def verify_factories_timestamp(jar,stamp):
+    with zipfile.ZipFile(jar) as archive:
+        entries=[x for x in archive.infolist() if x.filename=='META-INF/spring.factories']
+        require(len(entries)==1,'Missing or duplicate spring.factories output')
+        lines=archive.read(entries[0]).splitlines()
+    require(len(lines)>=2 and lines[0]==b'#Merged by PropertiesMergingResourceTransformer' and
+            lines[1]==('#'+stamp).encode('ascii'),'Maven JVM did not apply fixed Properties date')
+
+
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--commit',required=True);parser.add_argument('--print-plan',action='store_true');args=parser.parse_args()
     head=output(['git','rev-parse','--verify','HEAD'])
@@ -51,6 +72,7 @@ def main():
     check_untracked([p for p in untracked.split('\0') if p])
     epoch=output(['git','show','-s','--format=%ct',head])
     result=plan(args.commit,head,epoch,dirty)
+    env=build_environment(os.environ,epoch,result['output_timestamp'])
     if args.print_plan:print(json.dumps(result,sort_keys=True));return
     pins=tomllib.loads(Path('mise.toml').read_text())['tools']
     require(set(pins)=={'java','maven','node','pnpm'},'Unexpected toolchain')
@@ -65,8 +87,8 @@ def main():
         process=subprocess.run(command,check=True,capture_output=True,text=True)
         actual=process.stdout+process.stderr
         require(re.search(pattern,actual) is not None,'Wrong exact toolchain: '+command[0])
-    env={**os.environ,'SOURCE_DATE_EPOCH':epoch,'TZ':'UTC','LC_ALL':'C','LANG':'C'}
     subprocess.run(result['command'],check=True,env=env)
+    verify_factories_timestamp(Path('target/bibleverse-2.0.0-aws.jar'),result['output_timestamp'])
 
 
 if __name__=='__main__':main()
