@@ -163,12 +163,12 @@
         <executions>
           <execution>
             <id>build-info</id>
-            <configuration>
-              <time>${project.build.outputTimestamp}</time>
-            </configuration>
             <goals>
               <goal>build-info</goal>
             </goals>
+            <configuration>
+              <time>${project.build.outputTimestamp}</time>
+            </configuration>
           </execution>
         </executions>
       </plugin>
