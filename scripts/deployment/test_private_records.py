@@ -33,7 +33,7 @@ class Privacy(unittest.TestCase):
    with self.subTest(key=key),self.assertRaises(ValueError):p.decode(ref,raw,{**meta,key:value})
  def test_unapproved_private_and_public_sharing_stop_before_aws(self):
   for private,public in [(False,False),(True,False),(False,True)]:
-   with patch.object(d,'active',return_value={'private_checkpoint_upload_approved':private,'public_checkpoint_reference_sharing_approved':public}),patch.object(d,'aws') as aws:
+   with patch.object(d,'load',return_value={'mode':'migration'}),patch.object(d,'active',return_value={'private_checkpoint_upload_approved':private,'public_checkpoint_reference_sharing_approved':public}),patch.object(d,'aws') as aws:
     with self.assertRaises(ValueError):p.seal(Path('missing'),Path('missing-output'))
     aws.assert_not_called()
  def test_java_activation_cannot_seal_migration_records(self):
@@ -56,7 +56,9 @@ class Privacy(unittest.TestCase):
    if operation=='put-object':return {'VersionId':'V'*32}
    if operation=='head-object':return {'VersionId':'V'*32,'ContentLength':len(raw),'ChecksumSHA256':expected['sha256_base64'],'ServerSideEncryption':'AES256'}
    raise AssertionError(operation)
-  with tempfile.TemporaryDirectory() as td,patch.object(d,'active',return_value={'private_checkpoint_upload_approved':True,'public_checkpoint_reference_sharing_approved':True}),patch.object(d,'source_gate'),patch.object(p,'safe_bucket'),patch.object(d,'aws',side_effect=aws),patch.object(p,'fetch',return_value=record),patch.dict(os.environ,{'GITHUB_RUN_ID':'1'}):
+  original_load=d.load
+  def migration_load(path):return {'mode':'migration'} if path==d.CONFIG else original_load(path)
+  with tempfile.TemporaryDirectory() as td,patch.object(d,'load',side_effect=migration_load),patch.object(d,'active',return_value={'private_checkpoint_upload_approved':True,'public_checkpoint_reference_sharing_approved':True}),patch.object(d,'source_gate'),patch.object(p,'safe_bucket'),patch.object(d,'aws',side_effect=aws),patch.object(p,'fetch',return_value=record),patch.dict(os.environ,{'GITHUB_RUN_ID':'1'}):
    source=Path(td)/'private.json';source.write_bytes(raw);out=Path(td)/'public'/'record-ref.json';stdout=io.StringIO()
    with contextlib.redirect_stdout(stdout):p.seal(source,out)
    self.assertEqual(json.loads(out.read_text()),expected);self.assertNotIn('private-change-set-sentinel',out.read_text());self.assertEqual(stdout.getvalue(),'')

@@ -1,15 +1,49 @@
 {
-  "enabled": false,
-  "reason": "Disabled future-release proposal. Publication/CI, source bridge, scoped control updates and authenticated activation approval are required; current operator switch is separate.",
-  "source_baseline": "c7d06e4f1808f313408cc43b1addf4f75695e9d7",
+  "enabled": true,
+  "reason": "Two-app manual Java releases only. Each run requires exact authenticated package pins and explicit private-record/public-reference consent. No release is dispatched by activation.",
+  "source_baseline": "42ebf5a423eb89a43d7bb786419dc2b04305daff",
   "reviewed_change_set_arn": null,
   "reviewed_template_sha256": null,
-  "java_release_enabled": false,
-  "java_release_actor_ids": [],
-  "java_operator_actor_ids": [],
+  "java_release_enabled": true,
+  "java_release_actor_ids": [
+    6395602
+  ],
+  "java_operator_actor_ids": [
+    6395602
+  ],
   "migration_adapter_enabled": false,
   "migration_actor_ids": [],
   "migration_operator_actor_ids": [],
   "private_checkpoint_upload_approved": false,
-  "public_checkpoint_reference_sharing_approved": false
+  "public_checkpoint_reference_sharing_approved": false,
+  "mode": "two-app-java",
+  "baseline_executor": "arn:aws:iam::664759038511:role/BibleVerseCfnExecution",
+  "retention_applied": true,
+  "entry_replaced": true,
+  "executor_permissions_approved": true,
+  "asset_policy_verified": true,
+  "asset_policy_sha256": "aeb27915507ce078dc6ce0fb1b2f30efae32d65a11af29c57fc3951870579e34",
+  "executor_policy_pair_sha256": "6afee2fa0cdbebfafdda6aeaf679800dd9182c44486dae5c1fa13f8367940ed3",
+  "executor_policy_operator_verification": {
+    "executor_role_arn": "arn:aws:iam::664759038511:role/BibleVerseCfnExecution",
+    "inline_policy_name": "FoundationStagedPolicy",
+    "inline_sha256": "49216639c29a04b4772f6b21b5b38aceff2f072272c1816ed0b39ff8807b36ad",
+    "managed_policy_arn": "arn:aws:iam::664759038511:policy/BibleVerseProviderReadGuard",
+    "managed_sha256": "bf3ed914ae15b43c13281937b0af467245a1cdb1afb4cdcc5810a2d4c94fdb91",
+    "managed_attachment_roles": [
+      "arn:aws:iam::664759038511:role/BibleVerseCfnExecution"
+    ],
+    "managed_attachment_users": [],
+    "managed_attachment_groups": [],
+    "purpose": "operator-verified-executor-policy-pair",
+    "receipt_sha256": "79658ba3711eef182340416d223767da7d6c646d88190ea1556593d34db8cd3f",
+    "managed_default_version": "v2",
+    "executor_managed_policy_arns": [
+      "arn:aws:iam::664759038511:policy/BibleVerseProviderReadGuard"
+    ],
+    "executor_inline_policy_names": [
+      "FoundationStagedPolicy"
+    ],
+    "executor_permissions_boundary": null
+  }
 }
