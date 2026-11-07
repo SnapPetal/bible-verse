@@ -1,0 +1,30 @@
+{
+  "kind": "ordinary-java-two-phase",
+  "activation": false,
+  "source_commit": "c7d06e4f1808f313408cc43b1addf4f75695e9d7",
+  "fixture_only": true,
+  "old_versions": {
+    "AboutFunctionAC87887C": {
+      "role_arn": "arn:aws:iam::664759038511:role/bible-verse-stack-AboutFunctionServiceRoleDBE90D37-HSEVI7TOJ0PB",
+      "code_sha256": "/WiHwpfUYhI+YUxuvt25sTGAqjTI1KUERYMJDvQgQQI=",
+      "version": "32",
+      "logical_id": "AboutFunctionCurrentVersion5EB37F9Eb29a58d35ca96324601849ddb8705959",
+      "physical_id": "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F:32"
+    },
+    "RandomBibleVerseFunctionFDC072CB": {
+      "role_arn": "arn:aws:iam::664759038511:role/bible-verse-stack-RandomBibleVerseFunctionServiceR-1VU8PTDC78P7Y",
+      "code_sha256": "/WiHwpfUYhI+YUxuvt25sTGAqjTI1KUERYMJDvQgQQI=",
+      "version": "36",
+      "logical_id": "RandomBibleVerseFunctionCurrentVersionFD20F34F060e6b487cce91d3106a175008278415",
+      "physical_id": "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB:36"
+    }
+  },
+  "baseline_sha256": "c8c8fb7b4a14a7404e84b4df8ed9fda541fbb90da99e4b838a956131dc62603b",
+  "candidate_sha256": "78cf0637149f0d90072c0bb0f29ff4c86614943f22c86b26ab69a72fe08e278d",
+  "assets_sha256": "b041d99f9ed67190245a1209efb5a392013dfd9dc69a496a59a4b62b4f36073f",
+  "phase1_sha256": "5588318acf9ccbc5ba2ed7ab3c18e2c61bdc09ab2d803f99051e14c66c391955",
+  "phase2_sha256": "78cf0637149f0d90072c0bb0f29ff4c86614943f22c86b26ab69a72fe08e278d",
+  "capabilities": [
+    "CAPABILITY_NAMED_IAM"
+  ]
+}

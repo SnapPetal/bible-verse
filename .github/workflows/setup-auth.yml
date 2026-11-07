@@ -1,0 +1,57 @@
+name: Bible read-only setup authentication
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: bible-isolated-production
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main' && github.repository == 'SnapPetal/bible-verse'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify source and disabled mutation flags before authentication
+        run: python scripts/deployment/setup_auth.py gate
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::664759038511:role/GitHubActionsBibleVerseProdDeploy
+          aws-region: us-east-1
+          allowed-account-ids: '664759038511'
+          role-session-name: bible-setup-entry-deploy-${{ github.run_id }}
+          unset-current-credentials: true
+      - run: python scripts/deployment/setup_auth.py entry-deploy
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::664759038511:role/BibleVerseCdkDeploy
+          role-chaining: true
+          role-skip-session-tagging: true
+          aws-region: us-east-1
+          allowed-account-ids: '664759038511'
+          role-session-name: bible-setup-deploy-${{ github.run_id }}
+      - run: python scripts/deployment/setup_auth.py deploy
+      - name: Re-authenticate entry role using OIDC, not the deploy role
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::664759038511:role/GitHubActionsBibleVerseProdDeploy
+          role-chaining: false
+          aws-region: us-east-1
+          allowed-account-ids: '664759038511'
+          role-session-name: bible-setup-entry-publisher-${{ github.run_id }}
+          unset-current-credentials: true
+      - run: python scripts/deployment/setup_auth.py entry-publisher
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::664759038511:role/BibleVerseCdkFilePublisher
+          role-chaining: true
+          role-skip-session-tagging: true
+          aws-region: us-east-1
+          allowed-account-ids: '664759038511'
+          role-session-name: bible-setup-publisher-${{ github.run_id }}
+      - run: python scripts/deployment/setup_auth.py publisher

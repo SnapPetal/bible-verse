@@ -1,0 +1,447 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": [
+        "lambda:UpdateFunctionCode",
+        "lambda:GetFunction",
+        "lambda:GetFunctionCodeSigningConfig",
+        "lambda:GetFunctionRecursionConfig",
+        "lambda:GetRuntimeManagementConfig",
+        "lambda:GetFunctionScalingConfig",
+        "lambda:ListTags",
+        "lambda:UpdateFunctionConfiguration"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB"
+      ],
+      "Sid": "s0"
+    },
+    {
+      "Action": [
+        "kms:Decrypt"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "kms:CallerAccount": "664759038511",
+          "kms:EncryptionContext:aws:lambda:FunctionArn": [
+            "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F",
+            "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB"
+          ]
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:kms:us-east-1:664759038511:key/cac5a756-a7d8-4236-8c1c-a89329779bbf",
+      "Sid": "s1"
+    },
+    {
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "lambda.amazonaws.com"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:iam::664759038511:role/bible-verse-stack-AboutFunctionServiceRoleDBE90D37-HSEVI7TOJ0PB",
+        "arn:aws:iam::664759038511:role/bible-verse-stack-RandomBibleVerseFunctionServiceR-1VU8PTDC78P7Y"
+      ],
+      "Sid": "s2"
+    },
+    {
+      "Action": [
+        "ssm:GetParameters"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:ssm:us-east-1:664759038511:parameter/cdk-bootstrap/hnb659fds/version",
+      "Sid": "s3"
+    },
+    {
+      "Action": [
+        "iam:GetRole",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:GetRolePolicy"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:iam::664759038511:role/bible-verse-stack-AboutFunctionServiceRoleDBE90D37-HSEVI7TOJ0PB",
+        "arn:aws:iam::664759038511:role/bible-verse-stack-RandomBibleVerseFunctionServiceR-1VU8PTDC78P7Y"
+      ],
+      "Sid": "s4"
+    },
+    {
+      "Action": [
+        "logs:ListTagsForResource"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:logs:us-east-1:664759038511:log-group:/aws/lambda/BibleVerseStack-AboutFunction",
+        "arn:aws:logs:us-east-1:664759038511:log-group:/aws/lambda/BibleVerseStack-RandomBibleVerseFunction"
+      ],
+      "Sid": "s5"
+    },
+    {
+      "Action": [
+        "logs:GetDataProtectionPolicy"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:logs:us-east-1:664759038511:log-group:/aws/lambda/BibleVerseStack-AboutFunction:*",
+        "arn:aws:logs:us-east-1:664759038511:log-group:/aws/lambda/BibleVerseStack-RandomBibleVerseFunction:*"
+      ],
+      "Sid": "s6"
+    },
+    {
+      "Action": [
+        "logs:DescribeLogGroups",
+        "logs:DescribeIndexPolicies",
+        "logs:DescribeResourcePolicies"
+      ],
+      "Effect": "Allow",
+      "Resource": "*",
+      "Sid": "s7"
+    },
+    {
+      "Action": [
+        "apigateway:GET"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:apigateway:us-east-1::/domainnames/bibleverse.thonbecker.com",
+      "Sid": "s8"
+    },
+    {
+      "Sid": "s9",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion"
+      ],
+      "Resource": [
+        "arn:aws:s3:::bible-verse-cdk-assets-664759038511-us-east-1/assets/*.jar"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "s3:ResourceAccount": "664759038511"
+        }
+      }
+    },
+    {
+      "Sid": "s10",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:PublishVersion",
+        "lambda:ListVersionsByFunction"
+      ],
+      "Resource": [
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB"
+      ]
+    },
+    {
+      "Sid": "s11",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetFunctionConfiguration",
+        "lambda:GetProvisionedConcurrencyConfig",
+        "lambda:GetRuntimeManagementConfig",
+        "lambda:GetFunctionScalingConfig"
+      ],
+      "Resource": [
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F:*",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB:*"
+      ]
+    },
+    {
+      "Sid": "s12",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetAlias",
+        "lambda:UpdateAlias"
+      ],
+      "Resource": [
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F:live",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB:live"
+      ]
+    },
+    {
+      "Sid": "s13",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:UpdateFunctionCode"
+      ],
+      "Resource": [
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F:$LATEST",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB:$LATEST"
+      ]
+    },
+    {
+      "Sid": "s14",
+      "Effect": "Deny",
+      "Action": [
+        "apigateway:GET"
+      ],
+      "NotResource": [
+        "arn:aws:apigateway:us-east-1::/domainnames/bibleverse.thonbecker.com"
+      ]
+    },
+    {
+      "Sid": "s15",
+      "Effect": "Deny",
+      "Action": [
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies",
+        "iam:PassRole"
+      ],
+      "NotResource": [
+        "arn:aws:iam::664759038511:role/bible-verse-stack-AboutFunctionServiceRoleDBE90D37-HSEVI7TOJ0PB",
+        "arn:aws:iam::664759038511:role/bible-verse-stack-RandomBibleVerseFunctionServiceR-1VU8PTDC78P7Y"
+      ]
+    },
+    {
+      "Sid": "s16",
+      "Effect": "Deny",
+      "Action": [
+        "kms:Decrypt"
+      ],
+      "NotResource": [
+        "arn:aws:kms:us-east-1:664759038511:key/cac5a756-a7d8-4236-8c1c-a89329779bbf"
+      ]
+    },
+    {
+      "Sid": "s17",
+      "Effect": "Deny",
+      "Action": [
+        "lambda:GetAlias",
+        "lambda:UpdateAlias"
+      ],
+      "NotResource": [
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F:live",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB:live"
+      ]
+    },
+    {
+      "Sid": "s18",
+      "Effect": "Deny",
+      "Action": [
+        "lambda:GetFunction",
+        "lambda:GetFunctionCodeSigningConfig",
+        "lambda:GetFunctionRecursionConfig",
+        "lambda:ListTags",
+        "lambda:ListVersionsByFunction",
+        "lambda:PublishVersion",
+        "lambda:UpdateFunctionConfiguration"
+      ],
+      "NotResource": [
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB"
+      ]
+    },
+    {
+      "Sid": "s19",
+      "Effect": "Deny",
+      "Action": [
+        "lambda:GetFunctionConfiguration",
+        "lambda:GetFunctionScalingConfig",
+        "lambda:GetProvisionedConcurrencyConfig",
+        "lambda:GetRuntimeManagementConfig"
+      ],
+      "NotResource": [
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F:*",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB:*"
+      ]
+    },
+    {
+      "Sid": "s20",
+      "Effect": "Deny",
+      "Action": [
+        "lambda:UpdateFunctionCode"
+      ],
+      "NotResource": [
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F:$LATEST",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB:$LATEST"
+      ]
+    },
+    {
+      "Sid": "s21",
+      "Effect": "Deny",
+      "Action": [
+        "logs:DescribeIndexPolicies",
+        "logs:DescribeLogGroups",
+        "logs:DescribeResourcePolicies"
+      ],
+      "NotResource": [
+        "*"
+      ]
+    },
+    {
+      "Sid": "s22",
+      "Effect": "Deny",
+      "Action": [
+        "logs:GetDataProtectionPolicy"
+      ],
+      "NotResource": [
+        "arn:aws:logs:us-east-1:664759038511:log-group:/aws/lambda/BibleVerseStack-AboutFunction:*",
+        "arn:aws:logs:us-east-1:664759038511:log-group:/aws/lambda/BibleVerseStack-RandomBibleVerseFunction:*"
+      ]
+    },
+    {
+      "Sid": "s23",
+      "Effect": "Deny",
+      "Action": [
+        "logs:ListTagsForResource"
+      ],
+      "NotResource": [
+        "arn:aws:logs:us-east-1:664759038511:log-group:/aws/lambda/BibleVerseStack-AboutFunction",
+        "arn:aws:logs:us-east-1:664759038511:log-group:/aws/lambda/BibleVerseStack-RandomBibleVerseFunction"
+      ]
+    },
+    {
+      "Sid": "s24",
+      "Effect": "Deny",
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion"
+      ],
+      "NotResource": [
+        "arn:aws:s3:::bible-verse-cdk-assets-664759038511-us-east-1/assets/*.jar"
+      ]
+    },
+    {
+      "Sid": "s25",
+      "Effect": "Deny",
+      "Action": [
+        "ssm:GetParameters"
+      ],
+      "NotResource": [
+        "arn:aws:ssm:us-east-1:664759038511:parameter/cdk-bootstrap/hnb659fds/version"
+      ]
+    },
+    {
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion"
+      ],
+      "Condition": {
+        "StringNotEquals": {
+          "s3:ResourceAccount": "664759038511"
+        }
+      },
+      "Effect": "Deny",
+      "Resource": "*",
+      "Sid": "s26"
+    },
+    {
+      "Action": [
+        "kms:Decrypt"
+      ],
+      "Condition": {
+        "StringNotEquals": {
+          "kms:CallerAccount": "664759038511"
+        }
+      },
+      "Effect": "Deny",
+      "Resource": "*",
+      "Sid": "s27"
+    },
+    {
+      "Action": [
+        "kms:Decrypt"
+      ],
+      "Condition": {
+        "StringNotEquals": {
+          "kms:EncryptionContext:aws:lambda:FunctionArn": [
+            "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F",
+            "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB"
+          ]
+        }
+      },
+      "Effect": "Deny",
+      "Resource": "arn:aws:kms:us-east-1:664759038511:key/cac5a756-a7d8-4236-8c1c-a89329779bbf",
+      "Sid": "s28"
+    },
+    {
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Condition": {
+        "StringNotEquals": {
+          "iam:PassedToService": "lambda.amazonaws.com"
+        }
+      },
+      "Effect": "Deny",
+      "Resource": "*",
+      "Sid": "s29"
+    },
+    {
+      "Sid": "DenyEveryOtherAction",
+      "Effect": "Deny",
+      "NotAction": [
+        "apigateway:GET",
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies",
+        "iam:PassRole",
+        "kms:Decrypt",
+        "lambda:GetAlias",
+        "lambda:GetFunction",
+        "lambda:GetFunctionCodeSigningConfig",
+        "lambda:GetFunctionConfiguration",
+        "lambda:GetFunctionRecursionConfig",
+        "lambda:GetFunctionScalingConfig",
+        "lambda:GetProvisionedConcurrencyConfig",
+        "lambda:GetRuntimeManagementConfig",
+        "lambda:ListTags",
+        "lambda:ListVersionsByFunction",
+        "lambda:PublishVersion",
+        "lambda:UpdateAlias",
+        "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration",
+        "logs:DescribeIndexPolicies",
+        "logs:DescribeLogGroups",
+        "logs:DescribeResourcePolicies",
+        "logs:GetDataProtectionPolicy",
+        "logs:ListTagsForResource",
+        "s3:GetObject",
+        "s3:GetObjectVersion",
+        "ssm:GetParameters"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "s31",
+      "Effect": "Deny",
+      "Action": "*",
+      "Resource": "*",
+      "Condition": {
+        "ArnNotEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::664759038511:role/BibleVerseCfnExecution"
+        }
+      }
+    },
+    {
+      "Sid": "s32",
+      "Effect": "Deny",
+      "Action": "*",
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    }
+  ]
+}

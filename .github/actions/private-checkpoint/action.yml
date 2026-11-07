@@ -1,0 +1,51 @@
+name: Persist private deployment record
+# The repository is PUBLIC. Only the validated reference output may be uploaded to Actions.
+description: Store exact private bytes in the existing private immutable S3 reviews prefix, then restore deploy identity
+inputs:
+  record-path:
+    required: true
+    description: Local private JSON record; never a GitHub artifact path
+  reference-path:
+    required: true
+    description: Local flat non-sensitive reference for separately approved public sharing
+  deploy-session:
+    required: true
+    description: Exact workflow deployment session to restore
+runs:
+  using: composite
+  steps:
+    - uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: arn:aws:iam::664759038511:role/GitHubActionsBibleVerseProdDeploy
+        aws-region: us-east-1
+        role-session-name: bible-entry-${{ github.run_id }}
+        unset-current-credentials: true
+        allowed-account-ids: '664759038511'
+    - uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: arn:aws:iam::664759038511:role/BibleVerseCdkFilePublisher
+        role-chaining: true
+        role-skip-session-tagging: true
+        aws-region: us-east-1
+        role-session-name: bible-publish-${{ github.run_id }}
+        allowed-account-ids: '664759038511'
+    - shell: bash
+      env:
+        PRIVATE_RECORD_PATH: ${{ inputs.record-path }}
+        PUBLIC_REFERENCE_PATH: ${{ inputs.reference-path }}
+      run: python scripts/deployment/private_records.py --input "$PRIVATE_RECORD_PATH" --output "$PUBLIC_REFERENCE_PATH"
+    - uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: arn:aws:iam::664759038511:role/GitHubActionsBibleVerseProdDeploy
+        aws-region: us-east-1
+        role-session-name: bible-entry-${{ github.run_id }}
+        unset-current-credentials: true
+        allowed-account-ids: '664759038511'
+    - uses: aws-actions/configure-aws-credentials@v6
+      with:
+        role-to-assume: arn:aws:iam::664759038511:role/BibleVerseCdkDeploy
+        role-chaining: true
+        role-skip-session-tagging: true
+        aws-region: us-east-1
+        role-session-name: ${{ inputs.deploy-session }}
+        allowed-account-ids: '664759038511'

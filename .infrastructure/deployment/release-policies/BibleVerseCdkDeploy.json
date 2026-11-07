@@ -1,0 +1,384 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AppStackReads",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackResource"
+      ],
+      "Resource": [
+        "arn:aws:cloudformation:us-east-1:664759038511:stack/bible-verse-stack/fa26c080-376d-11ed-b814-122748dfbf1b"
+      ]
+    },
+    {
+      "Sid": "AppChangeSetReads",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:GetTemplate",
+        "cloudformation:DescribeEvents"
+      ],
+      "Resource": [
+        "arn:aws:cloudformation:us-east-1:664759038511:stack/bible-verse-stack/fa26c080-376d-11ed-b814-122748dfbf1b",
+        "arn:aws:cloudformation:us-east-1:664759038511:changeSet/bible-isolated-update-java-*/*"
+      ]
+    },
+    {
+      "Sid": "CreateExactExecutor",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:CreateChangeSet"
+      ],
+      "Resource": [
+        "arn:aws:cloudformation:us-east-1:664759038511:stack/bible-verse-stack/fa26c080-376d-11ed-b814-122748dfbf1b",
+        "arn:aws:cloudformation:us-east-1:664759038511:changeSet/bible-isolated-update-java-*/*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "cloudformation:RoleArn": "arn:aws:iam::664759038511:role/BibleVerseCfnExecution"
+        }
+      }
+    },
+    {
+      "Sid": "ExecuteAppChangeSets",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:ExecuteChangeSet"
+      ],
+      "Resource": [
+        "arn:aws:cloudformation:us-east-1:664759038511:stack/bible-verse-stack/fa26c080-376d-11ed-b814-122748dfbf1b",
+        "arn:aws:cloudformation:us-east-1:664759038511:changeSet/bible-isolated-update-java-*/*"
+      ]
+    },
+    {
+      "Sid": "PassOnlyExecutor",
+      "Effect": "Allow",
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::664759038511:role/BibleVerseCfnExecution"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "cloudformation.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "VersionObservations",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetFunctionConfiguration",
+        "lambda:GetRuntimeManagementConfig",
+        "lambda:GetFunctionScalingConfig",
+        "lambda:GetProvisionedConcurrencyConfig"
+      ],
+      "Resource": [
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F:*",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB:*"
+      ]
+    },
+    {
+      "Sid": "LiveAliasObservations",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetAlias"
+      ],
+      "Resource": [
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F:live",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB:live"
+      ]
+    },
+    {
+      "Sid": "PrivateBucketMetadata",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetBucketLocation",
+        "s3:GetBucketVersioning",
+        "s3:GetEncryptionConfiguration",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:GetBucketOwnershipControls",
+        "s3:GetBucketPolicy",
+        "s3:GetLifecycleConfiguration"
+      ],
+      "Resource": [
+        "arn:aws:s3:::bible-verse-cdk-assets-664759038511-us-east-1"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "s3:ResourceAccount": "664759038511"
+        }
+      }
+    },
+    {
+      "Sid": "PrivateAppReceipts",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion"
+      ],
+      "Resource": [
+        "arn:aws:s3:::bible-verse-cdk-assets-664759038511-us-east-1/assets/*.jar",
+        "arn:aws:s3:::bible-verse-cdk-assets-664759038511-us-east-1/reviews/*.json"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "s3:ResourceAccount": "664759038511"
+        }
+      }
+    },
+    {
+      "Sid": "PrivateFunctionConfigDecrypt",
+      "Effect": "Allow",
+      "Action": [
+        "kms:Decrypt"
+      ],
+      "Resource": [
+        "arn:aws:kms:us-east-1:664759038511:key/cac5a756-a7d8-4236-8c1c-a89329779bbf"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "kms:CallerAccount": "664759038511",
+          "kms:EncryptionContext:aws:lambda:FunctionArn": [
+            "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F",
+            "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyForeignResource0",
+      "Effect": "Deny",
+      "Action": [
+        "cloudformation:CreateChangeSet",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:DescribeEvents",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:GetTemplate"
+      ],
+      "NotResource": [
+        "arn:aws:cloudformation:us-east-1:664759038511:changeSet/bible-isolated-update-java-*/*",
+        "arn:aws:cloudformation:us-east-1:664759038511:stack/bible-verse-stack/fa26c080-376d-11ed-b814-122748dfbf1b"
+      ]
+    },
+    {
+      "Sid": "DenyForeignResource1",
+      "Effect": "Deny",
+      "Action": [
+        "cloudformation:DescribeStackResource",
+        "cloudformation:DescribeStacks"
+      ],
+      "NotResource": [
+        "arn:aws:cloudformation:us-east-1:664759038511:stack/bible-verse-stack/fa26c080-376d-11ed-b814-122748dfbf1b"
+      ]
+    },
+    {
+      "Sid": "DenyForeignResource2",
+      "Effect": "Deny",
+      "Action": [
+        "iam:PassRole"
+      ],
+      "NotResource": [
+        "arn:aws:iam::664759038511:role/BibleVerseCfnExecution"
+      ]
+    },
+    {
+      "Sid": "DenyForeignResource3",
+      "Effect": "Deny",
+      "Action": [
+        "kms:Decrypt"
+      ],
+      "NotResource": [
+        "arn:aws:kms:us-east-1:664759038511:key/cac5a756-a7d8-4236-8c1c-a89329779bbf"
+      ]
+    },
+    {
+      "Sid": "DenyForeignResource4",
+      "Effect": "Deny",
+      "Action": [
+        "lambda:GetAlias"
+      ],
+      "NotResource": [
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F:live",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB:live"
+      ]
+    },
+    {
+      "Sid": "DenyForeignResource5",
+      "Effect": "Deny",
+      "Action": [
+        "lambda:GetFunctionConfiguration",
+        "lambda:GetFunctionScalingConfig",
+        "lambda:GetProvisionedConcurrencyConfig",
+        "lambda:GetRuntimeManagementConfig"
+      ],
+      "NotResource": [
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F:*",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB",
+        "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB:*"
+      ]
+    },
+    {
+      "Sid": "DenyForeignResource6",
+      "Effect": "Deny",
+      "Action": [
+        "s3:GetBucketLocation",
+        "s3:GetBucketOwnershipControls",
+        "s3:GetBucketPolicy",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:GetBucketVersioning",
+        "s3:GetEncryptionConfiguration",
+        "s3:GetLifecycleConfiguration"
+      ],
+      "NotResource": [
+        "arn:aws:s3:::bible-verse-cdk-assets-664759038511-us-east-1"
+      ]
+    },
+    {
+      "Sid": "DenyForeignResource7",
+      "Effect": "Deny",
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion"
+      ],
+      "NotResource": [
+        "arn:aws:s3:::bible-verse-cdk-assets-664759038511-us-east-1/assets/*.jar",
+        "arn:aws:s3:::bible-verse-cdk-assets-664759038511-us-east-1/reviews/*.json"
+      ]
+    },
+    {
+      "Sid": "DenyWrongExecutor",
+      "Effect": "Deny",
+      "Action": [
+        "cloudformation:CreateChangeSet"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "cloudformation:RoleArn": "arn:aws:iam::664759038511:role/BibleVerseCfnExecution"
+        }
+      }
+    },
+    {
+      "Sid": "DenyWrongPassService",
+      "Effect": "Deny",
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "iam:PassedToService": "cloudformation.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "DenyWrongS3Owner",
+      "Effect": "Deny",
+      "Action": [
+        "s3:GetBucketLocation",
+        "s3:GetBucketVersioning",
+        "s3:GetEncryptionConfiguration",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:GetBucketOwnershipControls",
+        "s3:GetBucketPolicy",
+        "s3:GetLifecycleConfiguration",
+        "s3:GetObject",
+        "s3:GetObjectVersion"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "s3:ResourceAccount": "664759038511"
+        }
+      }
+    },
+    {
+      "Sid": "DenyWrongKmsAccount",
+      "Effect": "Deny",
+      "Action": [
+        "kms:Decrypt"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "kms:CallerAccount": "664759038511"
+        }
+      }
+    },
+    {
+      "Sid": "DenyWrongFunctionContext",
+      "Effect": "Deny",
+      "Action": [
+        "kms:Decrypt"
+      ],
+      "Resource": "arn:aws:kms:us-east-1:664759038511:key/cac5a756-a7d8-4236-8c1c-a89329779bbf",
+      "Condition": {
+        "StringNotEquals": {
+          "kms:EncryptionContext:aws:lambda:FunctionArn": [
+            "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F",
+            "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "DenyEveryOtherAction",
+      "Effect": "Deny",
+      "NotAction": [
+        "cloudformation:CreateChangeSet",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:DescribeEvents",
+        "cloudformation:DescribeStackResource",
+        "cloudformation:DescribeStacks",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:GetTemplate",
+        "iam:PassRole",
+        "kms:Decrypt",
+        "lambda:GetAlias",
+        "lambda:GetFunctionConfiguration",
+        "lambda:GetFunctionScalingConfig",
+        "lambda:GetProvisionedConcurrencyConfig",
+        "lambda:GetRuntimeManagementConfig",
+        "s3:GetBucketLocation",
+        "s3:GetBucketOwnershipControls",
+        "s3:GetBucketPolicy",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:GetBucketVersioning",
+        "s3:GetEncryptionConfiguration",
+        "s3:GetLifecycleConfiguration",
+        "s3:GetObject",
+        "s3:GetObjectVersion"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyOtherOrMissingPrincipal",
+      "Effect": "Deny",
+      "Action": "*",
+      "Resource": "*",
+      "Condition": {
+        "ArnNotEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::664759038511:role/BibleVerseCdkDeploy"
+        }
+      }
+    },
+    {
+      "Sid": "DenyOtherOrMissingRegion",
+      "Effect": "Deny",
+      "Action": "*",
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    }
+  ]
+}

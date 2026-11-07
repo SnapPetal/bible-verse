@@ -1,0 +1,915 @@
+{
+  "Resources": {
+    "AboutFunctionLogGroup2F0EA84A": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/BibleVerseStack-AboutFunction",
+        "RetentionInDays": 3
+      },
+      "UpdateReplacePolicy": "Delete",
+      "DeletionPolicy": "Delete"
+    },
+    "RandomBibleVerseFunctionLogGroupCBB20D4E": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/BibleVerseStack-RandomBibleVerseFunction",
+        "RetentionInDays": 3
+      },
+      "UpdateReplacePolicy": "Delete",
+      "DeletionPolicy": "Delete"
+    },
+    "AboutFunctionServiceRoleDBE90D37": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "AboutFunctionAC87887C": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": "bible-verse-cdk-assets-664759038511-us-east-1",
+          "S3Key": "assets/1abd5e864997e58318cb3ab3790628578295ec889c7d32230847de99c1b31a7e.jar",
+          "S3ObjectVersion": "SECOND-FIXTURE-AboutFunctionAC87887C"
+        },
+        "Environment": {
+          "Variables": {
+            "SPRING_CLOUD_FUNCTION_DEFINITION": "aboutHandler"
+          }
+        },
+        "Handler": "org.springframework.cloud.function.adapter.aws.FunctionInvoker",
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "AboutFunctionLogGroup2F0EA84A"
+          }
+        },
+        "MemorySize": 1024,
+        "Role": {
+          "Fn::GetAtt": [
+            "AboutFunctionServiceRoleDBE90D37",
+            "Arn"
+          ]
+        },
+        "Runtime": "java25",
+        "SnapStart": {
+          "ApplyOn": "PublishedVersions"
+        },
+        "Timeout": 30
+      },
+      "DependsOn": [
+        "AboutFunctionServiceRoleDBE90D37"
+      ]
+    },
+    "AboutFunctionLive3BC9ADF2": {
+      "Type": "AWS::Lambda::Alias",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "AboutFunctionAC87887C"
+        },
+        "FunctionVersion": {
+          "Fn::GetAtt": [
+            "AboutFunctionCurrentVersion5EB37F9Eb29a58d35ca96324601849ddb8705959NewOfflineFixtureSecond",
+            "Version"
+          ]
+        },
+        "Name": "live"
+      }
+    },
+    "BibleVerseBucketF8938CE6": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "BucketName": "bible-verse-data-files",
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "Tags": [
+          {
+            "Key": "aws-cdk:auto-delete-objects",
+            "Value": "true"
+          },
+          {
+            "Key": "aws-cdk:cr-owned:ed37c5f0",
+            "Value": "true"
+          }
+        ]
+      },
+      "UpdateReplacePolicy": "Retain",
+      "DeletionPolicy": "Retain"
+    },
+    "BibleVerseBucketPolicyCC2FD2F5": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "BibleVerseBucketF8938CE6"
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:*",
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*"
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "BibleVerseBucketF8938CE6",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "BibleVerseBucketF8938CE6",
+                          "Arn"
+                        ]
+                      },
+                      "/*"
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "Action": "s3:*",
+              "Condition": {
+                "NumericLessThan": {
+                  "s3:TlsVersion": 1.2
+                }
+              },
+              "Effect": "Deny",
+              "Principal": {
+                "AWS": "*"
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "BibleVerseBucketF8938CE6",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "BibleVerseBucketF8938CE6",
+                          "Arn"
+                        ]
+                      },
+                      "/*"
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "Action": [
+                "s3:DeleteObject*",
+                "s3:GetBucket*",
+                "s3:List*",
+                "s3:PutBucketPolicy"
+              ],
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::GetAtt": [
+                    "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+                    "Arn"
+                  ]
+                }
+              },
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "BibleVerseBucketF8938CE6",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "BibleVerseBucketF8938CE6",
+                          "Arn"
+                        ]
+                      },
+                      "/*"
+                    ]
+                  ]
+                }
+              ]
+            }
+          ],
+          "Version": "2012-10-17"
+        }
+      }
+    },
+    "BibleVerseBucketAutoDeleteObjectsCustomResource64B22329": {
+      "Type": "Custom::S3AutoDeleteObjects",
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F",
+            "Arn"
+          ]
+        },
+        "BucketName": {
+          "Ref": "BibleVerseBucketF8938CE6"
+        }
+      },
+      "DependsOn": [
+        "BibleVerseBucketPolicyCC2FD2F5"
+      ],
+      "UpdateReplacePolicy": "Retain",
+      "DeletionPolicy": "Retain"
+    },
+    "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              }
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+          }
+        ]
+      }
+    },
+    "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": "bible-verse-cdk-assets-664759038511-us-east-1",
+          "S3Key": "faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6.zip"
+        },
+        "Timeout": 900,
+        "MemorySize": 128,
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092",
+            "Arn"
+          ]
+        },
+        "Runtime": "nodejs24.x",
+        "Description": {
+          "Fn::Join": [
+            "",
+            [
+              "Lambda function for auto-deleting objects in ",
+              {
+                "Ref": "BibleVerseBucketF8938CE6"
+              },
+              " S3 bucket."
+            ]
+          ]
+        }
+      },
+      "DependsOn": [
+        "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092"
+      ]
+    },
+    "RandomBibleVerseFunctionServiceRole67A96F74": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+              ]
+            ]
+          }
+        ]
+      },
+      "DependsOn": [
+        "DeployBibleVerseAwsCliLayer2ED68A0E",
+        "DeployBibleVerseCustomResourceDE9B7344"
+      ]
+    },
+    "RandomBibleVerseFunctionServiceRoleDefaultPolicy363A9E40": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetBucket*",
+                "s3:GetObject*",
+                "s3:List*"
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "DeployBibleVerseCustomResourceDE9B7344",
+                    "DestinationBucketArn"
+                  ]
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "DeployBibleVerseCustomResourceDE9B7344",
+                          "DestinationBucketArn"
+                        ]
+                      },
+                      "/*"
+                    ]
+                  ]
+                }
+              ]
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "PolicyName": "RandomBibleVerseFunctionServiceRoleDefaultPolicy363A9E40",
+        "Roles": [
+          {
+            "Ref": "RandomBibleVerseFunctionServiceRole67A96F74"
+          }
+        ]
+      },
+      "DependsOn": [
+        "DeployBibleVerseAwsCliLayer2ED68A0E",
+        "DeployBibleVerseCustomResourceDE9B7344"
+      ]
+    },
+    "RandomBibleVerseFunctionFDC072CB": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": "bible-verse-cdk-assets-664759038511-us-east-1",
+          "S3Key": "assets/c9896356ed378e7120f8c19a279b8058903e3eb805bc52b29c3dcb61d23c1a17.jar",
+          "S3ObjectVersion": "SECOND-FIXTURE-RandomBibleVerseFunctionFDC072CB"
+        },
+        "Environment": {
+          "Variables": {
+            "BIBLEVERSE_S3_BUCKET_NAME": {
+              "Ref": "BibleVerseBucketF8938CE6"
+            },
+            "SPRING_CLOUD_FUNCTION_DEFINITION": "randomBibleVerseHandler"
+          }
+        },
+        "Handler": "org.springframework.cloud.function.adapter.aws.FunctionInvoker",
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "RandomBibleVerseFunctionLogGroupCBB20D4E"
+          }
+        },
+        "MemorySize": 1024,
+        "Role": {
+          "Fn::GetAtt": [
+            "RandomBibleVerseFunctionServiceRole67A96F74",
+            "Arn"
+          ]
+        },
+        "Runtime": "java25",
+        "SnapStart": {
+          "ApplyOn": "PublishedVersions"
+        },
+        "Timeout": 30
+      },
+      "DependsOn": [
+        "DeployBibleVerseAwsCliLayer2ED68A0E",
+        "DeployBibleVerseCustomResourceDE9B7344",
+        "RandomBibleVerseFunctionServiceRoleDefaultPolicy363A9E40",
+        "RandomBibleVerseFunctionServiceRole67A96F74"
+      ]
+    },
+    "RandomBibleVerseLive169430C5": {
+      "Type": "AWS::Lambda::Alias",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "RandomBibleVerseFunctionFDC072CB"
+        },
+        "FunctionVersion": {
+          "Fn::GetAtt": [
+            "RandomBibleVerseFunctionCurrentVersionFD20F34F060e6b487cce91d3106a175008278415NewOfflineFixtureSecond",
+            "Version"
+          ]
+        },
+        "Name": "live"
+      }
+    },
+    "DeployBibleVerseAwsCliLayer2ED68A0E": {
+      "Type": "AWS::Lambda::LayerVersion",
+      "Properties": {
+        "Content": {
+          "S3Bucket": "bible-verse-cdk-assets-664759038511-us-east-1",
+          "S3Key": "98f62bef9320f8c0a0a7be21d7c746f069131f196f51ffe3008a6bb730b368ec.zip"
+        },
+        "Description": "/opt/awscli/aws"
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "DeployBibleVerseCustomResourceDE9B7344": {
+      "Type": "Custom::CDKBucketDeployment",
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536",
+            "Arn"
+          ]
+        },
+        "SourceBucketNames": [
+          "bible-verse-cdk-assets-664759038511-us-east-1"
+        ],
+        "SourceObjectKeys": [
+          "b4045f26575039dad74322a212bbc4da19e7468c92514c3cae38900adbce3d11.zip"
+        ],
+        "DestinationBucketName": {
+          "Ref": "BibleVerseBucketF8938CE6"
+        },
+        "WaitForDistributionInvalidation": true,
+        "Prune": true,
+        "OutputObjectKeys": true,
+        "DestinationBucketArn": {
+          "Fn::GetAtt": [
+            "BibleVerseBucketF8938CE6",
+            "Arn"
+          ]
+        }
+      },
+      "UpdateReplacePolicy": "Delete",
+      "DeletionPolicy": "Delete"
+    },
+    "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:GetBucket*",
+                "s3:GetObject*",
+                "s3:List*"
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":s3:::bible-verse-cdk-assets-664759038511-us-east-1"
+                    ]
+                  ]
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":s3:::bible-verse-cdk-assets-664759038511-us-east-1/*"
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "Action": [
+                "s3:Abort*",
+                "s3:DeleteObject*",
+                "s3:GetBucket*",
+                "s3:GetObject*",
+                "s3:List*",
+                "s3:PutObject",
+                "s3:PutObjectLegalHold",
+                "s3:PutObjectRetention",
+                "s3:PutObjectTagging",
+                "s3:PutObjectVersionTagging"
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "BibleVerseBucketF8938CE6",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "BibleVerseBucketF8938CE6",
+                          "Arn"
+                        ]
+                      },
+                      "/*"
+                    ]
+                  ]
+                }
+              ]
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "PolicyName": "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF",
+        "Roles": [
+          {
+            "Ref": "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265"
+          }
+        ]
+      }
+    },
+    "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Architectures": [
+          "arm64"
+        ],
+        "Code": {
+          "S3Bucket": "bible-verse-cdk-assets-664759038511-us-east-1",
+          "S3Key": "35328da138f26fbd9160297abc9a2522d93dbf75878cd5114a9c050419fc1ce0.zip"
+        },
+        "Environment": {
+          "Variables": {
+            "AWS_CA_BUNDLE": "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
+          }
+        },
+        "Handler": "index.handler",
+        "Layers": [
+          {
+            "Ref": "DeployBibleVerseAwsCliLayer2ED68A0E"
+          }
+        ],
+        "MemorySize": 1024,
+        "Role": {
+          "Fn::GetAtt": [
+            "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265",
+            "Arn"
+          ]
+        },
+        "Runtime": "python3.13",
+        "Timeout": 900
+      },
+      "DependsOn": [
+        "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF",
+        "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265"
+      ]
+    },
+    "DomainNameBibleVerse8BDA2300": {
+      "Type": "AWS::ApiGatewayV2::DomainName",
+      "Properties": {
+        "DomainName": "bibleverse.thonbecker.com",
+        "DomainNameConfigurations": [
+          {
+            "CertificateArn": "arn:aws:acm:us-east-1:664759038511:certificate/1554896f-abd0-4a6b-8955-710f2f4a642b",
+            "EndpointType": "REGIONAL"
+          }
+        ]
+      }
+    },
+    "HttpApiBibleVerse0BF8D271": {
+      "Type": "AWS::ApiGatewayV2::Api",
+      "Properties": {
+        "CorsConfiguration": {
+          "AllowHeaders": [
+            "Content-Type",
+            "Access-Control-Allow-Headers",
+            "Access-Control-Allow-Origin",
+            "Access-Control-Allow-Methods"
+          ],
+          "AllowMethods": [
+            "GET",
+            "OPTIONS"
+          ],
+          "AllowOrigins": [
+            "*"
+          ]
+        },
+        "Name": "HttpApiBibleVerse",
+        "ProtocolType": "HTTP"
+      }
+    },
+    "HttpApiBibleVerseDefaultRouteDefaultIntegrationB74ED926": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApiBibleVerse0BF8D271"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Ref": "RandomBibleVerseLive169430C5"
+        },
+        "PayloadFormatVersion": "2.0"
+      }
+    },
+    "HttpApiBibleVerseDefaultRouteDefaultIntegrationPermission67A3DF6C": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "RandomBibleVerseLive169430C5"
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:us-east-1:664759038511:",
+              {
+                "Ref": "HttpApiBibleVerse0BF8D271"
+              },
+              "/*/*"
+            ]
+          ]
+        }
+      }
+    },
+    "HttpApiBibleVerseDefaultRoute2BE4586B": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApiBibleVerse0BF8D271"
+        },
+        "AuthorizationType": "NONE",
+        "RouteKey": "$default",
+        "Target": {
+          "Fn::Join": [
+            "",
+            [
+              "integrations/",
+              {
+                "Ref": "HttpApiBibleVerseDefaultRouteDefaultIntegrationB74ED926"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "HttpApiBibleVerseDefaultStageF0E6DC71": {
+      "Type": "AWS::ApiGatewayV2::Stage",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApiBibleVerse0BF8D271"
+        },
+        "AutoDeploy": true,
+        "StageName": "$default"
+      },
+      "DependsOn": [
+        "DomainNameBibleVerse8BDA2300"
+      ]
+    },
+    "HttpApiBibleVerseDefaultStagebibleversestackDomainNameBibleVerseundefinedE4EF274E": {
+      "Type": "AWS::ApiGatewayV2::ApiMapping",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApiBibleVerse0BF8D271"
+        },
+        "DomainName": {
+          "Ref": "DomainNameBibleVerse8BDA2300"
+        },
+        "Stage": "$default"
+      },
+      "DependsOn": [
+        "DomainNameBibleVerse8BDA2300",
+        "HttpApiBibleVerseDefaultStageF0E6DC71"
+      ]
+    },
+    "HttpApiBibleVerseGETaboutAboutIntegration3C9FD488": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApiBibleVerse0BF8D271"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Ref": "AboutFunctionLive3BC9ADF2"
+        },
+        "PayloadFormatVersion": "2.0"
+      }
+    },
+    "HttpApiBibleVerseGETaboutAboutIntegrationPermission85DB761D": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "AboutFunctionLive3BC9ADF2"
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:us-east-1:664759038511:",
+              {
+                "Ref": "HttpApiBibleVerse0BF8D271"
+              },
+              "/*/*/about"
+            ]
+          ]
+        }
+      }
+    },
+    "HttpApiBibleVerseGETabout8EB9C29B": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApiBibleVerse0BF8D271"
+        },
+        "AuthorizationType": "NONE",
+        "RouteKey": "GET /about",
+        "Target": {
+          "Fn::Join": [
+            "",
+            [
+              "integrations/",
+              {
+                "Ref": "HttpApiBibleVerseGETaboutAboutIntegration3C9FD488"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    "AliasBibleVerse278AE9A2": {
+      "Type": "AWS::Route53::RecordSet",
+      "Properties": {
+        "AliasTarget": {
+          "DNSName": {
+            "Fn::GetAtt": [
+              "DomainNameBibleVerse8BDA2300",
+              "RegionalDomainName"
+            ]
+          },
+          "HostedZoneId": {
+            "Fn::GetAtt": [
+              "DomainNameBibleVerse8BDA2300",
+              "RegionalHostedZoneId"
+            ]
+          }
+        },
+        "HostedZoneId": "Z0960080GF0UBO75OWWP",
+        "Name": "bibleverse.thonbecker.com.",
+        "Type": "A"
+      }
+    },
+    "AboutFunctionCurrentVersion5EB37F9Eb29a58d35ca96324601849ddb8705959NewOfflineFixtureSecond": {
+      "Type": "AWS::Lambda::Version",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "AboutFunctionAC87887C"
+        },
+        "CodeSha256": "Gr1ehkmX5YMYyzqzeQYoV4KV7IicfTIjCEfemcGzGn4="
+      },
+      "Metadata": {
+        "aws:cdk:do-not-refactor": true
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "RandomBibleVerseFunctionCurrentVersionFD20F34F060e6b487cce91d3106a175008278415NewOfflineFixtureSecond": {
+      "Type": "AWS::Lambda::Version",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "RandomBibleVerseFunctionFDC072CB"
+        },
+        "CodeSha256": "yYljVu03jnEg+MGaJ5uAWJA+PrgFvFKynD3LYdI8Ghc="
+      },
+      "DependsOn": [
+        "DeployBibleVerseAwsCliLayer2ED68A0E",
+        "DeployBibleVerseCustomResourceDE9B7344"
+      ],
+      "Metadata": {
+        "aws:cdk:do-not-refactor": true
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    }
+  }
+}
