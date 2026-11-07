@@ -1,65 +1,16 @@
 name: Deploy
-
+# Legacy push deployment intentionally retired. Real Java releases use the reviewed
+# manual java-release workflow; unsupported infrastructure changes stop there.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
-
 permissions:
-  id-token: write
   contents: read
-
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
+  group: bible-isolated-production
+  cancel-in-progress: false
 jobs:
-  deploy:
-    name: Deploy
+  verify:
     runs-on: ubuntu-latest
-    # AWS_ROLE_TO_ASSUME comes from this environment; the role trusts only it.
-    environment: production
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v7
-      - name: Install toolchain
-        uses: jdx/mise-action@v5
-        with:
-          cache: true
-      - name: Resolve pnpm store path
-        id: pnpm-store
-        run: echo "path=$(pnpm store path)" >> "$GITHUB_OUTPUT"
-      - name: Cache Maven repository
-        uses: actions/cache@v6
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
-      - name: Cache pnpm store
-        uses: actions/cache@v6
-        with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('mise.toml', '.infrastructure/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
-      - name: Build with Maven
-        run: mvn clean verify
-      - name: Configure aws credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          role-session-name: github-actions-bibleverse-deploy
-          aws-region: 'us-east-1'
-      - name: Deploy cdk
-        working-directory: .infrastructure
-        run: |
-          pnpm install --frozen-lockfile
-          # If a previous deployment was cancelled mid-update, wait for CloudFormation stacks to complete
-          status=$(aws cloudformation describe-stacks --stack-name "bible-verse-stack" --query "Stacks[0].StackStatus" --output text 2>/dev/null || true)
-          if [ "$status" = "UPDATE_IN_PROGRESS" ]; then
-            echo "Stack bible-verse-stack is UPDATE_IN_PROGRESS. Waiting for completion..."
-            aws cloudformation wait stack-update-complete --stack-name "bible-verse-stack" || true
-          fi
-          pnpm cdk synth
-          pnpm cdk deploy --all --require-approval never
+      - uses: actions/checkout@v7
+      - run: python -m unittest discover -s scripts/deployment -p 'test_*.py'

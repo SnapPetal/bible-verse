@@ -1,0 +1,78 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "OnlyBibleDedicatedRoles",
+      "Effect": "Allow",
+      "Action": [
+        "sts:AssumeRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::664759038511:role/BibleVerseCdkDeploy",
+        "arn:aws:iam::664759038511:role/BibleVerseCdkFilePublisher"
+      ]
+    },
+    {
+      "Sid": "ReadOnlyBibleStack",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStacks"
+      ],
+      "Resource": [
+        "arn:aws:cloudformation:us-east-1:664759038511:stack/bible-verse-stack/fa26c080-376d-11ed-b814-122748dfbf1b"
+      ]
+    },
+    {
+      "Sid": "DenyForeignResource0",
+      "Effect": "Deny",
+      "Action": [
+        "cloudformation:DescribeStacks"
+      ],
+      "NotResource": [
+        "arn:aws:cloudformation:us-east-1:664759038511:stack/bible-verse-stack/fa26c080-376d-11ed-b814-122748dfbf1b"
+      ]
+    },
+    {
+      "Sid": "DenyForeignResource1",
+      "Effect": "Deny",
+      "Action": [
+        "sts:AssumeRole"
+      ],
+      "NotResource": [
+        "arn:aws:iam::664759038511:role/BibleVerseCdkDeploy",
+        "arn:aws:iam::664759038511:role/BibleVerseCdkFilePublisher"
+      ]
+    },
+    {
+      "Sid": "DenyEveryOtherAction",
+      "Effect": "Deny",
+      "NotAction": [
+        "cloudformation:DescribeStacks",
+        "sts:AssumeRole"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyOtherOrMissingPrincipal",
+      "Effect": "Deny",
+      "Action": "*",
+      "Resource": "*",
+      "Condition": {
+        "ArnNotEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::664759038511:role/GitHubActionsBibleVerseProdDeploy"
+        }
+      }
+    },
+    {
+      "Sid": "DenyOtherOrMissingRegion",
+      "Effect": "Deny",
+      "Action": "*",
+      "Resource": "*",
+      "Condition": {
+        "StringNotEquals": {
+          "aws:RequestedRegion": "us-east-1"
+        }
+      }
+    }
+  ]
+}

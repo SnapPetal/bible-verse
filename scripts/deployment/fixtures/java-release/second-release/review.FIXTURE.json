@@ -1,0 +1,30 @@
+{
+  "kind": "ordinary-java-two-phase",
+  "activation": false,
+  "source_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "fixture_only": true,
+  "old_versions": {
+    "AboutFunctionAC87887C": {
+      "role_arn": "arn:aws:iam::664759038511:role/OFFLINE-FIXTURE-AboutFunctionAC87887C",
+      "code_sha256": "5zZ1ZujD7eBSZpolsP4vCR/zzktTPVU0NbSs7gpbE84=",
+      "version": "33",
+      "logical_id": "AboutFunctionCurrentVersion5EB37F9Eb29a58d35ca96324601849ddb8705959NewOfflineFixture",
+      "physical_id": "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F:33"
+    },
+    "RandomBibleVerseFunctionFDC072CB": {
+      "role_arn": "arn:aws:iam::664759038511:role/OFFLINE-FIXTURE-RandomBibleVerseFunctionFDC072CB",
+      "code_sha256": "LTGF5S2/waEt9PHtaEo61sKOpIw2lhUbLwAJFPxGmyE=",
+      "version": "37",
+      "logical_id": "RandomBibleVerseFunctionCurrentVersionFD20F34F060e6b487cce91d3106a175008278415NewOfflineFixture",
+      "physical_id": "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB:37"
+    }
+  },
+  "baseline_sha256": "78cf0637149f0d90072c0bb0f29ff4c86614943f22c86b26ab69a72fe08e278d",
+  "candidate_sha256": "88674f39a3dabe02e7f3cdf161d0a07f0103b0ebe91e614975790efced7ec6b7",
+  "assets_sha256": "09fa46e00bcbc854bd3764ee8c919e15e7f71ba492552947bdf2728509f296e1",
+  "phase1_sha256": "b694908fa3fcda53e6c59c724628f5eaffb1ad5ee1303c0c2906a40ee0bc098c",
+  "phase2_sha256": "88674f39a3dabe02e7f3cdf161d0a07f0103b0ebe91e614975790efced7ec6b7",
+  "capabilities": [
+    "CAPABILITY_NAMED_IAM"
+  ]
+}

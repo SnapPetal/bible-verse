@@ -15,6 +15,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout repo
         uses: actions/checkout@v7
@@ -39,11 +40,18 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('mise.toml', '.infrastructure/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-
+      - name: Test deployment protocol offline
+        run: |
+          python -m unittest discover -s scripts/deployment -p 'test_*.py'
+          python -O -m unittest discover -s scripts/deployment -p 'test_*.py'
       - name: Build with Maven
         run: mvn clean verify
       - name: Install and test infrastructure
         working-directory: .infrastructure
         run: |
           pnpm install --frozen-lockfile
+          pnpm build
           pnpm test
-          pnpm cdk synth
+          mkdir -p ../.private/cdk-source
+          pnpm exec cdk synth bible-verse-stack --app 'pnpm exec ts-node bin/bibleverse-source-only.ts' --no-lookups --output ../.private/cdk-source --quiet > ../.private/source-synth.log 2>&1 || { echo 'Source synthesis failed; no private template or log uploaded.'; exit 1; }
+

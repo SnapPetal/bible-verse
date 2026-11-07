@@ -22,8 +22,8 @@ export interface GithubOidcStackProps extends cdk.StackProps {
 }
 
 /**
- * Least-privilege role for GitHub Actions CDK deploys. The role can only assume
- * the CDK bootstrap roles (which do the actual deployment) and read stack status.
+ * Bible GitHub entry role. Trust is unchanged; permissions allow only the
+ * dedicated Bible deploy/publisher role assumptions and app stack status.
  */
 export class GithubOidcStack extends cdk.Stack {
   public readonly deployRole: iam.Role;
@@ -52,21 +52,12 @@ export class GithubOidcStack extends cdk.Stack {
     cdk.Tags.of(this.deployRole).add('Purpose', 'github-actions-cdk-deploy');
     cdk.Tags.of(this.deployRole).add('ManagedBy', 'CDK');
 
-    const qualifier = props.cdkQualifier ?? 'hnb659fds';
-    this.deployRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'AssumeCdkBootstrapRoles',
-        actions: ['sts:AssumeRole', 'sts:TagSession'],
-        resources: [`arn:${this.partition}:iam::${this.account}:role/cdk-${qualifier}-*`],
-      }),
-    );
-    this.deployRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'ReadStackStatus',
-        actions: ['cloudformation:DescribeStacks'],
-        resources: [`arn:${this.partition}:cloudformation:${this.region}:${this.account}:stack/*`],
-      }),
-    );
+    // Operator-only source: replace this role's inline permissions, never its trust/provider.
+    // The reviewed document explicitly denies all other roles/actions.
+    const reviewedPolicy = require('../deployment/entry-inline-policy.proposed.json');
+    for (const statement of reviewedPolicy.Statement) {
+      this.deployRole.addToPolicy(iam.PolicyStatement.fromJson(statement));
+    }
 
     new cdk.CfnOutput(this, 'GithubDeployRoleArn', {
       value: this.deployRole.roleArn,
@@ -74,3 +65,4 @@ export class GithubOidcStack extends cdk.Stack {
     });
   }
 }
+

@@ -1,0 +1,15 @@
+{
+  "enabled": false,
+  "reason": "Disabled future-release proposal. Publication/CI, source bridge, scoped control updates and authenticated activation approval are required; current operator switch is separate.",
+  "source_baseline": "c7d06e4f1808f313408cc43b1addf4f75695e9d7",
+  "reviewed_change_set_arn": null,
+  "reviewed_template_sha256": null,
+  "java_release_enabled": false,
+  "java_release_actor_ids": [],
+  "java_operator_actor_ids": [],
+  "migration_adapter_enabled": false,
+  "migration_actor_ids": [],
+  "migration_operator_actor_ids": [],
+  "private_checkpoint_upload_approved": false,
+  "public_checkpoint_reference_sharing_approved": false
+}

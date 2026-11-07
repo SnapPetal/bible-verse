@@ -1,0 +1,22 @@
+{
+  "AboutFunctionAC87887C": {
+    "bucket": "bible-verse-cdk-assets-664759038511-us-east-1",
+    "owner": "664759038511",
+    "encryption": "AES256",
+    "checksum_type": "FULL_OBJECT",
+    "key": "assets/1abd5e864997e58318cb3ab3790628578295ec889c7d32230847de99c1b31a7e.jar",
+    "version_id": "SECOND-FIXTURE-AboutFunctionAC87887C",
+    "bytes": 1,
+    "sha256_base64": "Gr1ehkmX5YMYyzqzeQYoV4KV7IicfTIjCEfemcGzGn4="
+  },
+  "RandomBibleVerseFunctionFDC072CB": {
+    "bucket": "bible-verse-cdk-assets-664759038511-us-east-1",
+    "owner": "664759038511",
+    "encryption": "AES256",
+    "checksum_type": "FULL_OBJECT",
+    "key": "assets/c9896356ed378e7120f8c19a279b8058903e3eb805bc52b29c3dcb61d23c1a17.jar",
+    "version_id": "SECOND-FIXTURE-RandomBibleVerseFunctionFDC072CB",
+    "bytes": 1,
+    "sha256_base64": "yYljVu03jnEg+MGaJ5uAWJA+PrgFvFKynD3LYdI8Ghc="
+  }
+}

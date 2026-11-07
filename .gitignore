@@ -16,3 +16,12 @@ cdk.out
 
 # MacOS
 .DS_Store
+
+# Private runtime material must never be committed to this PUBLIC repository.
+.private/
+java-receipts/
+migration-receipts/
+deployment-receipts/
+.infrastructure/deployment/publication-plan.json
+.infrastructure/deployment/java-release/
+**/__pycache__/
