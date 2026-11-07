@@ -21,7 +21,6 @@ The source gate pins that approved observation; it does not authenticate an arbi
 
 All mutation flags remain false in this amendment. Setup authentication stays read-only and does not enable this gate. No release, upload or AWS policy change is performed by CI or merging source. A partial/mixed pair or failed postflight must leave deployment paused. Do not detach the managed guard during the transition, since it supplies the global action ceiling; any rollback must restore the reviewed prior inline guard before a separately authorized detachment.
 
-
 ## Manual Java release consent and preparation
 
 Java release storage/sharing consent is requested for each authenticated manual run, not enabled by global storage/sharing switches. Both inputs default to false:
