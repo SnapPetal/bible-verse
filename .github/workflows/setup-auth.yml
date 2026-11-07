@@ -17,7 +17,7 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v7
-      - name: Verify source and disabled mutation flags before authentication
+      - name: Verify source and read-only probe before authentication
         run: python scripts/deployment/setup_auth.py gate
       - uses: aws-actions/configure-aws-credentials@v6
         with:

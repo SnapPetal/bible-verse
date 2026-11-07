@@ -17,7 +17,7 @@ ROLES = {'entry-deploy': 'GitHubActionsBibleVerseProdDeploy',
 
 
 def gate(config, context):
-    d.need(all(config.get(key) is False for key in FLAGS), 'Setup requires all mutation flags disabled')
+    d.need(all(type(config.get(key)) is bool for key in FLAGS), 'Invalid activation flag types')
     d.need(context.get('repository') == 'SnapPetal/bible-verse' and
            context.get('ref') == 'refs/heads/main' and
            context.get('event') == 'workflow_dispatch', 'Wrong setup source context')
@@ -36,7 +36,7 @@ def probe(mode, config, context, aws):
     expected = f'arn:aws:sts::{d.ACCOUNT}:assumed-role/{ROLES[mode]}/bible-setup-{mode}-{context["run_id"]}'
     d.need(identity.get('Account') == d.ACCOUNT and identity.get('Arn') == expected,
            'Wrong setup account, role or session')
-    result = {'read_only': True, 'all_mutation_flags_disabled': True, 'identity_verified': True}
+    result = {'read_only': True, 'all_mutation_flags_disabled': all(config[key] is False for key in FLAGS), 'identity_verified': True}
     if mode.startswith('entry-'):
         return result
     if mode == 'deploy':
@@ -84,7 +84,7 @@ def main():
                    'sha': sha, 'head': sha, 'main': sha, 'run_id': os.environ.get('GITHUB_RUN_ID', '')}
         gate(config, context)
         if args.mode == 'gate':
-            result = {'read_only': True, 'source_verified': True, 'all_mutation_flags_disabled': True}
+            result = {'read_only': True, 'source_verified': True, 'all_mutation_flags_disabled': all(config[key] is False for key in FLAGS)}
         else:
             result = probe(args.mode, config, context, d.aws)
         print(json.dumps(result, sort_keys=True))

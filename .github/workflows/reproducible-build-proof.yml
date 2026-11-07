@@ -1,0 +1,22 @@
+name: Bible nondeploy reproducible build proof
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  prove:
+    if: github.repository == 'SnapPetal/bible-verse' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: jdx/mise-action@v5
+        with:
+          cache: true
+      - name: Test proof guards without cloud access
+        run: python -m unittest discover -s scripts/deployment -p 'test_*reproducible*.py'
+      - name: Compare two clean builds of this exact source
+        run: python scripts/deployment/prove_reproducible.py --commit "$GITHUB_SHA"

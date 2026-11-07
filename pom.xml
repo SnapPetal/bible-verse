@@ -134,6 +134,11 @@
             </goals>
             <configuration>
               <rules>
+                <requireProperty>
+                  <property>project.build.outputTimestamp</property>
+                  <regex>^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$</regex>
+                  <message>Use scripts/deployment/reproducible_build.py with the exact source commit.</message>
+                </requireProperty>
                 <bannedDependencies>
                   <excludes>
                     <exclude>com.amazonaws:aws-java-sdk*</exclude>
@@ -161,6 +166,9 @@
             <goals>
               <goal>build-info</goal>
             </goals>
+            <configuration>
+              <time>${project.build.outputTimestamp}</time>
+            </configuration>
           </execution>
         </executions>
       </plugin>

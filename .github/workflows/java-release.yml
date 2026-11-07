@@ -3,6 +3,16 @@ run-name: Bible Java ${{ inputs.mode }} at ${{ github.sha }}
 on:
   workflow_dispatch:
     inputs:
+      approve_private_records:
+        description: Approve this pinned reviewed package on the GitHub runner and immutable private S3 review records (may contain reviewed configuration, never credentials)
+        type: boolean
+        default: false
+        required: true
+      approve_public_references:
+        description: Approve public GitHub artifacts containing only this package's bounded bucket/key/version/hash references for 3 days
+        type: boolean
+        default: false
+        required: true
       mode:
         type: choice
         options: [review, release, operator-reconcile]
@@ -35,6 +45,11 @@ concurrency:
 jobs:
   gate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
       - run: python -m unittest discover -s scripts/deployment -p 'test_*.py'
@@ -65,7 +80,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .private/cdk-source
-          mvn clean verify > .private/maven.log 2>&1 || { echo 'Pinned Maven build failed; inspect private runner log.'; exit 1; }
+          python scripts/deployment/reproducible_build.py --commit "$GITHUB_SHA" > .private/maven.log 2>&1 || { echo 'Pinned Maven build failed; inspect private runner log.'; exit 1; }
           (cd .infrastructure && pnpm install --frozen-lockfile && pnpm test && pnpm exec cdk synth bible-verse-stack --app 'pnpm exec ts-node bin/bibleverse-source-only.ts' --no-lookups --output ../.private/cdk-source --quiet) > .private/source-synth.log 2>&1 || { echo 'Pinned source synthesis failed; inspect private runner log.'; exit 1; }
       - uses: aws-actions/configure-aws-credentials@v6
         with:

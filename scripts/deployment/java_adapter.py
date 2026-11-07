@@ -258,7 +258,8 @@ def write_json(path,value):
  path=Path(path);path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(d.canonical(value));path.chmod(0o600)
 def dispatch():
  c=d.java_active();d.need(c.get('java_release_enabled') is True,'Ordinary release adapter disabled')
- d.need(c.get('private_checkpoint_upload_approved') is True and c.get('public_checkpoint_reference_sharing_approved') is True,'Private persistence/public-reference disclosure not approved')
+ import dispatch_approval
+ consent=dispatch_approval.authorize(c)
  d.need(os.environ.get('GITHUB_REPOSITORY')==REPO and os.environ.get('GITHUB_REF')=='refs/heads/main' and os.environ.get('GITHUB_WORKFLOW_REF')==REPO+'/'+WORKFLOW+'@refs/heads/main','Wrong workflow context')
  d.need(os.environ.get('GITHUB_EVENT_NAME')=='workflow_dispatch','Authenticated manual dispatch required')
  event=d.load(os.environ['GITHUB_EVENT_PATH']);ids=c.get('java_operator_actor_ids',[]) if event['inputs']['mode']=='operator-reconcile' else c.get('java_release_actor_ids',[])
@@ -266,7 +267,9 @@ def dispatch():
  pins=json.loads(event['inputs']['review_pins']);source=os.environ['GITHUB_SHA'];d.need(pins['source_commit']==source,'Dispatch source mismatch')
  d.source_gate()
  extra=json.loads(event['inputs'].get('recovery') or '{}');d.need(set(extra)<= {'response_artifact_id','response_artifact_digest','operator_artifact_id','operator_artifact_digest','operator_private_ref'},'Unexpected recovery fields')
- return c,{**event['inputs'],**extra},Adapter(Transport(),c.get('java_release_actor_ids',[]),source,pins,os.environ['GITHUB_RUN_ID'],os.environ.get('GITHUB_RUN_ATTEMPT','1'),c.get('java_operator_actor_ids',[]))
+ adapter=Adapter(Transport(),c.get('java_release_actor_ids',[]),source,pins,os.environ['GITHUB_RUN_ID'],os.environ.get('GITHUB_RUN_ATTEMPT','1'),c.get('java_operator_actor_ids',[]))
+ adapter.dispatch_approval_sha256=consent['request_sha256']
+ return c,{**event['inputs'],**extra},adapter
 def deployment_for_run(a):
  deployments=a.t.github(f'repos/{REPO}/deployments?sha={a.source}&environment=production&per_page=100')
  d.need(len(deployments)<100,'Deployment discovery incomplete');matches=[]
@@ -287,6 +290,11 @@ def output(values):
  if os.environ.get('GITHUB_OUTPUT'):
   with open(os.environ['GITHUB_OUTPUT'],'a') as f:
    for k,v in values.items():f.write(f'{k}={v}\n')
+def write_approved_record(adapter,path,record):
+ digest_=getattr(adapter,'dispatch_approval_sha256',None)
+ d.need(type(digest_) is str and re.fullmatch('[a-f0-9]{64}',digest_),'Missing authenticated dispatch binding')
+ write_json(path,{**record,'dispatch_approval_sha256':digest_})
+
 def main():
  ap=argparse.ArgumentParser();ap.add_argument('mode',choices=['gate','review','stage','submit','operator-reconcile']);ap.add_argument('--out',type=Path,default=Path('java-receipts'));args=ap.parse_args()
  c,inputs,a=dispatch()
@@ -304,7 +312,7 @@ def main():
   controls=bundle['controls'];d.need(digest(controls)==review['controls_sha256'],'Unreviewed controls')
   from datetime import timedelta
   record={'kind':'java-review','plan':plan,'candidate':bundle['candidate'],'controls':controls,'template_receipts':bundle['template_receipts'],'plan_sha256':digest(plan),'source_commit':a.source,'run_id':a.run_id,'deployment_id':deployment,'expires_at':(a.t.now()+timedelta(days=3)).isoformat()}
-  write_json(args.out/'review.json',record);output({'artifact_name':'bible-java-review-'+digest(plan)});return
+  write_approved_record(a,args.out/'review.json',record);output({'artifact_name':'bible-java-review-'+digest(plan)});return
  review=a.read_artifact(inputs['review_artifact_id'],inputs['review_artifact_digest'],'java-review')
  if args.mode=='operator-reconcile':
   d.need(inputs['mode']=='operator-reconcile','Wrong dispatch mode')
@@ -313,7 +321,7 @@ def main():
   cs=a.describe(r['history'][-1]['request']['ChangeSetName']);d.need(cs is not None,'Create absent; no replay authorization');a.operator_event(r,phase,event,cs)
   deployment=deployment_for_run(a);a.provenance(a.run_id,deployment,operator=True)
   record={'kind':'java-operator-evidence','source_commit':a.source,'plan_sha256':a.pins['plan_sha256'],'run_id':a.run_id,'deployment_id':deployment,'intent_artifact_id':int(inputs['resume_artifact_id']),'intent_artifact_digest':inputs['resume_artifact_digest'],'request_sha256':digest(r['history'][-1]['request']),'intent_state':r['state'],'event':event}
-  write_json(args.out/'operator-evidence.json',record);output({'artifact_name':'bible-java-operator-'+a.pins['plan_sha256']+'-'+r['state']});return
+  write_approved_record(a,args.out/'operator-evidence.json',record);output({'artifact_name':'bible-java-operator-'+a.pins['plan_sha256']+'-'+r['state']});return
  d.need(inputs['mode']=='release','Wrong release mode')
  if args.mode=='stage':
   resume_id=os.environ.get('RESUME_ARTIFACT_ID') or inputs.get('resume_artifact_id')
@@ -329,12 +337,12 @@ def main():
   deployment=deployment_for_run(a);a.provenance(a.run_id,deployment)
   operation.setdefault('intent_origins',{})[operation['state']]={'run_id':a.run_id,'created_at':a.t.now().isoformat()}
   checkpoint={'kind':'java-intent','source_commit':a.source,'plan_sha256':a.pins['plan_sha256'],'run_id':a.run_id,'run_attempt':a.attempt,'deployment_id':deployment,'operation':operation,'request_sha256':digest(operation['history'][-1]['request']),'template_receipts':review['template_receipts'],'controls':review['controls']}
-  write_json(args.out/'operation.json',checkpoint);output({'complete':'false','artifact_name':'bible-java-intent-'+operation['plan_digest']+'-'+operation['state']});return
+  write_approved_record(a,args.out/'operation.json',checkpoint);output({'complete':'false','artifact_name':'bible-java-intent-'+operation['plan_digest']+'-'+operation['state']});return
  checkpoint=a.read_artifact(os.environ['INTENT_ARTIFACT_ID'],os.environ['INTENT_ARTIFACT_DIGEST'],'java-intent')
  d.need(checkpoint['operation']['plan']==review['plan'] and checkpoint['controls']==review['controls'] and checkpoint['template_receipts']==review['template_receipts'],'Submitted checkpoint differs from review')
  # Exclusive same-run gate; rerun attempts are rejected by submit, and later runs must reconcile.
  d.exclusive_intent(args.out/'submission-gate.json',{'artifact_id':os.environ['INTENT_ARTIFACT_ID'],'digest':os.environ['INTENT_ARTIFACT_DIGEST']})
  result=a.submit(checkpoint)
  receipt={'kind':'java-response','source_commit':a.source,'plan_sha256':a.pins['plan_sha256'],'run_id':a.run_id,'deployment_id':checkpoint['deployment_id'],'intent_artifact_id':int(os.environ['INTENT_ARTIFACT_ID']),'intent_artifact_digest':os.environ['INTENT_ARTIFACT_DIGEST'],'intent_state':checkpoint['operation']['state'],'request_sha256':checkpoint['request_sha256'],'response':result}
- write_json(args.out/'response.json',receipt);output({'artifact_name':'bible-java-response-'+a.pins['plan_sha256']+'-'+checkpoint['operation']['state']})
+ write_approved_record(a,args.out/'response.json',receipt);output({'artifact_name':'bible-java-response-'+a.pins['plan_sha256']+'-'+checkpoint['operation']['state']})
 if __name__=='__main__':main()
