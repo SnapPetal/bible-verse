@@ -70,8 +70,12 @@ def validate_event_projections(value):
 
 def seal(path,out):
  java_mode=d.load(d.CONFIG).get('mode')=='two-app-java'
- c=d.java_active() if java_mode else d.active();d.need(c.get('private_checkpoint_upload_approved') is True and c.get('public_checkpoint_reference_sharing_approved') is True,'Checkpoint storage/public-reference sharing not approved')
+ c=d.java_active() if java_mode else d.active()
+ if not java_mode:d.need(c.get('private_checkpoint_upload_approved') is True and c.get('public_checkpoint_reference_sharing_approved') is True,'Checkpoint storage/public-reference sharing not approved')
  record=d.load(path);d.need(record.get('kind') in KINDS and record['kind'].startswith('java-')==java_mode,'Record kind cannot cross activation scopes')
+ if java_mode:
+  import dispatch_approval
+  dispatch_approval.authorize(c,record)
  d.source_gate();actor=d.aws('sts','get-caller-identity')
  d.need(actor.get('Account')==d.ACCOUNT and actor.get('Arn')==f'arn:aws:sts::{d.ACCOUNT}:assumed-role/BibleVerseCdkFilePublisher/bible-publish-{os.environ["GITHUB_RUN_ID"]}','Wrong private-record publisher')
  safe_bucket(c)

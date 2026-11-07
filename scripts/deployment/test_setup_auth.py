@@ -52,12 +52,22 @@ class Probe(unittest.TestCase):
             self.mode = mode;self.calls = [];self.run_probe()
             self.assertEqual([x[1] for x in self.calls], ['get-caller-identity'] + (['get-bucket-versioning'] if mode == 'publisher' else []))
 
-    def test_enabled_or_missing_flags_block_before_any_call(self):
+    def test_invalid_or_missing_flags_block_before_any_call(self):
         for key in s.FLAGS:
-            for bad in [True, None, 0, 'false']:
+            for bad in [None, 0, 'false']:
                 self.config = {k: False for k in s.FLAGS};self.config[key] = bad;self.calls = []
                 with self.subTest(key=key, bad=bad), self.assertRaises(ValueError):self.run_probe()
                 self.assertEqual(self.calls, [])
+
+    def test_legitimate_activation_does_not_change_read_only_probe(self):
+        self.config['enabled'] = True
+        self.config['java_release_enabled'] = True
+        before = copy.deepcopy(self.config)
+        result = self.run_probe()
+        self.assertTrue(result['read_only'])
+        self.assertFalse(result['all_mutation_flags_disabled'])
+        self.assertEqual(before, self.config)
+        self.assertTrue(all(op.startswith(('get-', 'describe-')) for _,op,_ in self.calls))
 
     def test_wrong_source_blocks_before_any_call(self):
         for key, value in [('repository', 'other/repo'), ('ref', 'refs/heads/other'), ('event', 'push'), ('sha', 'bad'), ('head', 'b'*40), ('main', 'b'*40), ('run_id', 'x')]:

@@ -45,7 +45,7 @@ jobs:
           python -m unittest discover -s scripts/deployment -p 'test_*.py'
           python -O -m unittest discover -s scripts/deployment -p 'test_*.py'
       - name: Build with Maven
-        run: mvn clean verify
+        run: python scripts/deployment/reproducible_build.py --commit "$GITHUB_SHA"
       - name: Install and test infrastructure
         working-directory: .infrastructure
         run: |
