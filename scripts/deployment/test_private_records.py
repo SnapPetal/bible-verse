@@ -36,6 +36,12 @@ class Privacy(unittest.TestCase):
    with patch.object(d,'active',return_value={'private_checkpoint_upload_approved':private,'public_checkpoint_reference_sharing_approved':public}),patch.object(d,'aws') as aws:
     with self.assertRaises(ValueError):p.seal(Path('missing'),Path('missing-output'))
     aws.assert_not_called()
+ def test_java_activation_cannot_seal_migration_records(self):
+  c={'mode':'two-app-java','private_checkpoint_upload_approved':True,'public_checkpoint_reference_sharing_approved':True}
+  def load(path):return c if path==d.CONFIG else {'kind':'migration-intent'}
+  with patch.object(d,'load',side_effect=load),patch.object(d,'java_active',return_value=c),patch.object(d,'aws') as aws:
+   with self.assertRaises(ValueError):p.seal(Path('record'),Path('out'))
+   aws.assert_not_called()
  def test_bucket_privacy_failure_stops_before_upload(self):
   for key in ['BlockPublicAcls','IgnorePublicAcls','BlockPublicPolicy','RestrictPublicBuckets']:
    blocks={x:True for x in ['BlockPublicAcls','IgnorePublicAcls','BlockPublicPolicy','RestrictPublicBuckets']};blocks[key]=False

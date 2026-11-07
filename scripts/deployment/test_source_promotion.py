@@ -62,7 +62,7 @@ class Promotion(unittest.TestCase):
    phase1=copy.deepcopy(l);old_versions={}
    for fid,info in j.FUNCTIONS.items():
     old=j.version_ref(l['Resources'][info['alias']]);new=j.version_ref(out['Resources'][info['alias']]);phase1['Resources'][fid]['Properties']['Code']=out['Resources'][fid]['Properties']['Code'];phase1['Resources'][new]=out['Resources'][new]
-    old_versions[fid]={'logical_id':old,'version':str(32+int(step)),'physical_id':f'arn:aws:lambda:us-east-1:664759038511:function:{info["name"]}:{32+int(step)}'}
+    old_versions[fid]={'role_arn':j.RUNTIME_ROLES[fid][1],'logical_id':old,'version':str(32+int(step)),'physical_id':f'arn:aws:lambda:us-east-1:664759038511:function:{info["name"]}:{32+int(step)}'}
    jr={'kind':'ordinary-java-two-phase','activation':False,'baseline_sha256':p.sha(l),'candidate_sha256':p.sha(out),'assets_sha256':p.sha(a),'source_commit':'a'*40,'capabilities':['CAPABILITY_NAMED_IAM'],'old_versions':old_versions,'phase1_sha256':p.sha(phase1),'phase2_sha256':p.sha(out)}
    result=j.derive(l,out,a,jr);self.assertEqual(result['phase2'],out)
    s,l=n,out

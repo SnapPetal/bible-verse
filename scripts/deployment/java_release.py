@@ -11,6 +11,10 @@ FUNCTIONS={
  'AboutFunctionAC87887C':{'name':'bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F','alias':'AboutFunctionLive3BC9ADF2'},
  'RandomBibleVerseFunctionFDC072CB':{'name':'bible-verse-stack-RandomBibleVerseFunctionFDC072CB-gnvb3C8pZGqB','alias':'RandomBibleVerseLive169430C5'},
 }
+RUNTIME_ROLES={
+ 'AboutFunctionAC87887C':('AboutFunctionServiceRoleDBE90D37',f'arn:aws:iam::{ACCOUNT}:role/bible-verse-stack-AboutFunctionServiceRoleDBE90D37-HSEVI7TOJ0PB'),
+ 'RandomBibleVerseFunctionFDC072CB':('RandomBibleVerseFunctionServiceRole67A96F74',f'arn:aws:iam::{ACCOUNT}:role/bible-verse-stack-RandomBibleVerseFunctionServiceR-1VU8PTDC78P7Y'),
+}
 DEPLOY=f'arn:aws:iam::{ACCOUNT}:role/BibleVerseCdkDeploy'
 def exact_digest(value,digest,label):
  need(isinstance(digest,str) and re.fullmatch('[a-f0-9]{64}',digest) and sha(canonical(value))==digest,label+' not separately reviewed')
@@ -37,6 +41,9 @@ def derive(b,c,assets,review):
  need(set(assets)==set(FUNCTIONS),'Wrong function asset set')
  s1=copy.deepcopy(b); expected=copy.deepcopy(b); versions={}
  for fid,info in FUNCTIONS.items():
+  logical_role,role_arn=RUNTIME_ROLES[fid]
+  need(b['Resources'][fid]['Properties'].get('Role')=={'Fn::GetAtt':[logical_role,'Arn']} and c['Resources'][fid]['Properties'].get('Role')=={'Fn::GetAtt':[logical_role,'Arn']},'Runtime role reference differs from exact existing role')
+  need(review['old_versions'][fid].get('role_arn')==role_arn,'Runtime role ARN differs from exact existing role')
   oldid=version_ref(b['Resources'][info['alias']]); newid=version_ref(c['Resources'][info['alias']])
   need(newid!=oldid and newid not in b['Resources'],'Version must be new')
   old_review=review['old_versions'][fid];old_number=old_review.get('version','')

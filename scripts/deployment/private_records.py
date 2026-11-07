@@ -69,11 +69,13 @@ def validate_event_projections(value):
   for child in value:validate_event_projections(child)
 
 def seal(path,out):
- c=d.active();d.need(c.get('private_checkpoint_upload_approved') is True and c.get('public_checkpoint_reference_sharing_approved') is True,'Checkpoint storage/public-reference sharing not approved')
+ java_mode=d.load(d.CONFIG).get('mode')=='two-app-java'
+ c=d.java_active() if java_mode else d.active();d.need(c.get('private_checkpoint_upload_approved') is True and c.get('public_checkpoint_reference_sharing_approved') is True,'Checkpoint storage/public-reference sharing not approved')
+ record=d.load(path);d.need(record.get('kind') in KINDS and record['kind'].startswith('java-')==java_mode,'Record kind cannot cross activation scopes')
  d.source_gate();actor=d.aws('sts','get-caller-identity')
  d.need(actor.get('Account')==d.ACCOUNT and actor.get('Arn')==f'arn:aws:sts::{d.ACCOUNT}:assumed-role/BibleVerseCdkFilePublisher/bible-publish-{os.environ["GITHUB_RUN_ID"]}','Wrong private-record publisher')
  safe_bucket(c)
- record=d.load(path);d.need(record.get('kind') in KINDS,'Unapproved private record kind');reject_credentials_and_transcripts(record);validate_event_projections(record)
+ reject_credentials_and_transcripts(record);validate_event_projections(record)
  raw=d.canonical(record);key='reviews/'+sha(raw)+'.json';expected={'key':key,'bytes':len(raw),'sha256_base64':base64.b64encode(hashlib.sha256(raw).digest()).decode()}
  d.need(0<len(raw)<=4_000_000,'Private record exceeds reviewed bound')
  # Never upload again on local replay or a 409/412/uncertain result. Keep the same content key.

@@ -11,6 +11,17 @@ class Guards(unittest.TestCase):
  def test_locked_without_aws(self):
   with patch.object(d,'aws',side_effect=AssertionError('must not call AWS')):
    with self.assertRaises(ValueError): d.active()
+ def test_two_app_gate_without_false_boundary_or_recovery_claim(self):
+  c={'enabled':True,'java_release_enabled':True,'migration_adapter_enabled':False,'mode':'two-app-java','baseline_executor':d.EXECUTOR,'retention_applied':True,'entry_replaced':True,'executor_permissions_approved':True,'asset_policy_verified':True,'asset_policy_sha256':'a'*64}
+  with patch.object(d,'load',return_value=c),patch.object(d,'aws',side_effect=AssertionError('offline gate')):
+   self.assertEqual(d.java_active(),c)
+   with self.assertRaises(ValueError):d.active()
+  for key,value in [('enabled',False),('java_release_enabled',False),('migration_adapter_enabled',True),('mode','steady-state'),('baseline_executor','shared'),('retention_applied',False),('asset_policy_sha256','bad')]:
+   changed={**c,key:value}
+   with self.subTest(key=key),patch.object(d,'load',return_value=changed),self.assertRaises(ValueError):d.java_active()
+ def test_legacy_gate_still_requires_boundary_and_recovery(self):
+  c={'enabled':True,'mode':'one-time-byte-preserving','retention_applied':True,'entry_replaced':True,'executor_permissions_approved':True,'asset_policy_verified':True,'baseline_sha256':'a'*64,'candidate_sha256':'b'*64,'asset_policy_sha256':'c'*64}
+  with patch.object(d,'load',return_value=c),self.assertRaises(ValueError):d.active()
  def test_exact_change_set(self):
   self.assertEqual(len(d.check_changes(self.x,self.c,self.t,self.cs)),64)
  def test_identity_and_status_negatives(self):

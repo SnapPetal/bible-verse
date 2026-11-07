@@ -5,14 +5,14 @@
   "fixture_only": true,
   "old_versions": {
     "AboutFunctionAC87887C": {
-      "role_arn": "arn:aws:iam::664759038511:role/OFFLINE-FIXTURE-AboutFunctionAC87887C",
+      "role_arn": "arn:aws:iam::664759038511:role/bible-verse-stack-AboutFunctionServiceRoleDBE90D37-HSEVI7TOJ0PB",
       "code_sha256": "5zZ1ZujD7eBSZpolsP4vCR/zzktTPVU0NbSs7gpbE84=",
       "version": "33",
       "logical_id": "AboutFunctionCurrentVersion5EB37F9Eb29a58d35ca96324601849ddb8705959NewOfflineFixture",
       "physical_id": "arn:aws:lambda:us-east-1:664759038511:function:bible-verse-stack-AboutFunctionAC87887C-wAQ2Yfm0gK8F:33"
     },
     "RandomBibleVerseFunctionFDC072CB": {
-      "role_arn": "arn:aws:iam::664759038511:role/OFFLINE-FIXTURE-RandomBibleVerseFunctionFDC072CB",
+      "role_arn": "arn:aws:iam::664759038511:role/bible-verse-stack-RandomBibleVerseFunctionServiceR-1VU8PTDC78P7Y",
       "code_sha256": "LTGF5S2/waEt9PHtaEo61sKOpIw2lhUbLwAJFPxGmyE=",
       "version": "37",
       "logical_id": "RandomBibleVerseFunctionCurrentVersionFD20F34F060e6b487cce91d3106a175008278415NewOfflineFixture",

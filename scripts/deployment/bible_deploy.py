@@ -62,6 +62,20 @@ def active():
   need(re.fullmatch('[0-9a-f]{64}',c.get(name,'')),'Missing digest: '+name)
  return c
 
+def java_active():
+ # Only ordinary two-app code/version/alias releases. Never enables migration/helper paths.
+ c=load(CONFIG)
+ need(c.get('enabled') is True and c.get('java_release_enabled') is True,'Two-app release activation disabled')
+ need(c.get('mode')=='two-app-java' and c.get('migration_adapter_enabled') is False,'Wrong two-app mode or migration enabled')
+ need(c.get('baseline_executor')==EXECUTOR,'Dedicated app executor not pinned')
+ for name in ['retention_applied','entry_replaced','executor_permissions_approved','asset_policy_verified']:
+  need(c.get(name) is True,'Unaccepted two-app prerequisite: '+name)
+ need(re.fullmatch('[a-f0-9]{64}',c.get('asset_policy_sha256','')),'Missing private asset policy pin')
+ # Per-release source/template/asset/stage pins and actor identity are checked by
+ # authenticated dispatch, derive(), live observations and exact change-set gates.
+ # No assertion about attached boundaries or helper/data recovery is made here.
+ return c
+
 def object_receipt(h,a):
  need(h.get('ServerSideEncryption')=='AES256' and h.get('ContentLength')==a['bytes'],'Object size/encryption mismatch')
  need(h.get('ChecksumSHA256')==a['sha256_base64'] and h.get('ChecksumType','FULL_OBJECT')=='FULL_OBJECT','Object checksum mismatch')

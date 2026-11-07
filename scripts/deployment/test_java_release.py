@@ -29,6 +29,15 @@ class Releases(unittest.TestCase):
   self.assertEqual(execute['ChangeSetName'],cs['ChangeSetId']);return cs
  def complete_first(self):
   self.op.start(self.p,observation(self.p));cs=self.stage(1);e=observation(self.p,'phase1');e['change_set']={**cs,'ExecutionStatus':'EXECUTE_COMPLETE'};self.op.reconcile_execute(1,e)
+ def test_exact_runtime_role_cannot_be_reapproved_as_other_role(self):
+  for fid in j.FUNCTIONS:
+   b=load('baseline');c=load('candidate');a=load('assets');r=load('review.FIXTURE')
+   r['old_versions'][fid]['role_arn']='arn:aws:iam::664759038511:role/other'
+   with self.assertRaises(ValueError):j.derive(b,c,a,r)
+   r=load('review.FIXTURE')
+   for t in [b,c]:t['Resources'][fid]['Properties']['Role']={'Fn::GetAtt':['OtherRole','Arn']}
+   r['baseline_sha256']=j.sha(j.canonical(b));r['candidate_sha256']=j.sha(j.canonical(c))
+   with self.assertRaises(ValueError):j.derive(b,c,a,r)
  def test_two_phases_and_no_old_version_deletion(self):
   self.complete_first();cs=self.stage(2);e=observation(self.p,'phase2','new');e['change_set']={**cs,'ExecutionStatus':'EXECUTE_COMPLETE'};self.op.reconcile_execute(2,e)
   self.assertEqual(json.loads(self.op.path.read_text())['state'],'complete')

@@ -247,7 +247,7 @@ class Adapter:
 def write_json(path,value):
  path=Path(path);path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(d.canonical(value));path.chmod(0o600)
 def dispatch():
- c=d.active();d.need(c.get('java_release_enabled') is True,'Ordinary release adapter disabled')
+ c=d.java_active();d.need(c.get('java_release_enabled') is True,'Ordinary release adapter disabled')
  d.need(c.get('private_checkpoint_upload_approved') is True and c.get('public_checkpoint_reference_sharing_approved') is True,'Private persistence/public-reference disclosure not approved')
  d.need(os.environ.get('GITHUB_REPOSITORY')==REPO and os.environ.get('GITHUB_REF')=='refs/heads/main' and os.environ.get('GITHUB_WORKFLOW_REF')==REPO+'/'+WORKFLOW+'@refs/heads/main','Wrong workflow context')
  d.need(os.environ.get('GITHUB_EVENT_NAME')=='workflow_dispatch','Authenticated manual dispatch required')
