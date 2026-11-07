@@ -1,4 +1,4 @@
-import { Stack, StackProps, RemovalPolicy, Duration, Annotations } from 'aws-cdk-lib';
+import { Stack, StackProps, RemovalPolicy, Duration, Annotations, CfnResource } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
@@ -96,6 +96,25 @@ export class BibleVerseStack extends Stack {
       destinationBucket: bucket,
     });
 
+    // Preservation only: keep construct identities, properties and auto-delete tags intact.
+    // Do not replace this with removal of autoDeleteObjects or a bucket property change.
+    const retainedResources: Array<[Construct | undefined, string]> = [
+      [bucket.node.defaultChild, 'AWS::S3::Bucket'],
+      [bucket.node.findChild('AutoDeleteObjectsCustomResource').node.defaultChild, 'Custom::S3AutoDeleteObjects'],
+      [aboutVersion.node.defaultChild, 'AWS::Lambda::Version'],
+      [randomBibleVerseVersion.node.defaultChild, 'AWS::Lambda::Version'],
+      [deployment.node.findChild('AwsCliLayer').node.defaultChild, 'AWS::Lambda::LayerVersion'],
+    ];
+    for (const [resource, expectedType] of retainedResources) {
+      if (!(resource instanceof CfnResource) || resource.cfnResourceType !== expectedType) {
+        throw new Error(`Retention target missing or changed: ${expectedType}`);
+      }
+      // Raw lifecycle overrides deliberately leave the L2 DESTROY/auto-delete validation
+      // configuration intact. Regression tests must inspect the emitted template.
+      resource.addOverride('DeletionPolicy', 'Retain');
+      resource.addOverride('UpdateReplacePolicy', 'Retain');
+    }
+
     deployment.deployedBucket.grantRead(randomBibleVerseFunction);
     randomBibleVerseFunction.node.addDependency(deployment);
 
@@ -137,3 +156,4 @@ export class BibleVerseStack extends Stack {
     });
   }
 }
+
