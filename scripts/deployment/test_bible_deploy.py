@@ -13,6 +13,8 @@ class Guards(unittest.TestCase):
    with self.assertRaises(ValueError): d.active()
  def test_two_app_gate_without_false_boundary_or_recovery_claim(self):
   c={'enabled':True,'java_release_enabled':True,'migration_adapter_enabled':False,'mode':'two-app-java','baseline_executor':d.EXECUTOR,'retention_applied':True,'entry_replaced':True,'executor_permissions_approved':True,'asset_policy_verified':True,'asset_policy_sha256':'a'*64}
+  from test_executor_policy_pair import fixture_activation
+  c.update(fixture_activation())
   with patch.object(d,'load',return_value=c),patch.object(d,'aws',side_effect=AssertionError('offline gate')):
    self.assertEqual(d.java_active(),c)
    with self.assertRaises(ValueError):d.active()
