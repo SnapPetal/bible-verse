@@ -38,7 +38,7 @@ Serverless REST API returning random Bible verses in CSB (English) and Greek tra
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/pr.yml` and `deploy.yml`) install tools from `mise.toml` with `jdx/mise-action`. Push to `main` runs `mvn clean verify`, then `cdk deploy`. AWS auth uses GitHub OIDC and the `AWS_ROLE_TO_ASSUME` repository secret.
+The proposed ordinary application workflow is `.github/workflows/java-release.yml`: main push or no-input manual run, using tools from `mise.toml`, a private immutable JAR upload and app-only CloudFormation changes through dedicated Bible roles. The legacy `deploy.yml` is retired. Do not use `cdk deploy --all` for this scoped path or deploy the OIDC/control stacks from it. This local proposal is not authorization to publish, activate or release.
 
 ## Code Formatting
 

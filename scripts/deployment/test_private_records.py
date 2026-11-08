@@ -63,15 +63,21 @@ class Privacy(unittest.TestCase):
    with contextlib.redirect_stdout(stdout):p.seal(source,out)
    self.assertEqual(json.loads(out.read_text()),expected);self.assertNotIn('private-change-set-sentinel',out.read_text());self.assertEqual(stdout.getvalue(),'')
    put=next(kw for op,kw in seen if op=='put-object');self.assertEqual(put['if_none_match'],'*');self.assertEqual(put['storage_class'],'STANDARD');self.assertEqual(put['key'],expected['key'])
- def test_workflow_artifacts_are_references_not_records(self):
+ def test_normal_workflow_has_no_private_or_reference_artifact_uploads(self):
   root=Path(__file__).resolve().parents[2]
-  for name in ['java-release.yml']:
-   text=(root/'.github/workflows'/name).read_text();paths=re.findall(r'^          path: (.+)$',text,re.M);self.assertTrue(paths)
-   self.assertTrue(all(x.endswith('/record-ref.json') for x in paths));self.assertIn('./.github/actions/private-checkpoint',text)
+  text=(root/'.github/workflows/java-release.yml').read_text()
+  for forbidden in ['upload-artifact','private-checkpoint','inputs:','bundle_ref','review_pins','java_adapter.py','cdk deploy']:
+   self.assertNotIn(forbidden,text)
+  for command in ['simple_deploy.py plan','simple_deploy.py publish','simple_deploy.py deploy']:
+   self.assertIn(command,text)
+  self.assertIn('cancel-in-progress: false',text)
+  self.assertIn('timeout-minutes: 30',text)
+  self.assertNotIn('.private/maven.log',text)
+  self.assertNotIn('2>&1',text)
+  self.assertIn('--no-lookups',text)
+  self.assertLess(text.index('reproducible_build.py'),text.index('aws-actions/configure-aws-credentials'))
   retired=(root/'.github/workflows/deploy.yml').read_text()
   for forbidden in ['upload-artifact','configure-aws-credentials','private-checkpoint','  push:','cdk deploy']:self.assertNotIn(forbidden,retired)
-  self.assertIn('workflow_dispatch:',retired);self.assertIn('python -m unittest',retired)
-  self.assertIn('.infrastructure/deployment/publication-plan.json',(root/'.gitignore').read_text())
  def test_mock_public_archives_store_only_private_refs(self):
   cloud=Cloud(plan());record={'kind':'java-review','plan_sha256':'a'*64,'run_id':101,'private_template':{'Environment':'PRIVATE-SENTINEL'}};ident,_=cloud.upload_model(record)
   with zipfile.ZipFile(io.BytesIO(cloud.archive(ident))) as z:

@@ -1,95 +1,53 @@
-name: Bible two-phase Java release
-run-name: Bible Java ${{ inputs.mode }} at ${{ github.sha }}
+name: Bible build and deploy
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      approve_private_records:
-        description: Approve this pinned reviewed package on the GitHub runner and immutable private S3 review records (may contain reviewed configuration, never credentials)
-        type: boolean
-        default: false
-        required: true
-      approve_public_references:
-        description: Approve public GitHub artifacts containing only this package's bounded bucket/key/version/hash references for 3 days
-        type: boolean
-        default: false
-        required: true
-      mode:
-        type: choice
-        options: [review, release, operator-reconcile]
-        required: true
-      review_pins:
-        description: Reviewed JSON pins for source, plan, baseline, candidate, assets and both phases
-        type: string
-        required: true
-      review_artifact_id:
-        type: string
-      review_artifact_digest:
-        description: Exact sha256-prefixed digest of the successful production review artifact
-        type: string
-      resume_artifact_id:
-        type: string
-      resume_artifact_digest:
-        description: Exact sha256-prefixed digest of a prior durable intent (never rerun a submission)
-        type: string
-      recovery:
-        description: Optional JSON containing response/operator artifact IDs and digests, or a private operator-evidence reference; never raw event/credentials/transcript
-        type: string
-      bundle_ref:
-        description: Independently reviewed private S3 version/digest reference; never raw template, environment, event or approval text
-        type: string
 permissions:
   contents: read
 concurrency:
   group: bible-isolated-production
   cancel-in-progress: false
 jobs:
-  gate:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - uses: actions/checkout@v7
-      - run: python -m unittest discover -s scripts/deployment -p 'test_*.py'
-      - name: Disabled until exact activation and authorized dispatch review
-        run: python scripts/deployment/java_adapter.py gate
-  release:
-    needs: gate
+  deploy:
     if: github.ref == 'refs/heads/main' && github.repository == 'SnapPetal/bible-verse'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: production
     permissions:
       contents: read
-      actions: read
-      deployments: read
       id-token: write
-    env:
-      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
-      - name: Install pinned source toolchain before AWS authentication
-        if: inputs.mode == 'review'
-        uses: jdx/mise-action@v5
+      - uses: jdx/mise-action@v5
         with:
           cache: true
-      - name: Build and synthesize source without publishing assets
-        if: inputs.mode == 'review'
+      - name: Test deployment checks offline
+        run: |
+          python -m unittest discover -s scripts/deployment -p 'test_*.py'
+          python -O -m unittest discover -s scripts/deployment -p 'test_*.py'
+      - name: Build and synthesize only the Bible application
         shell: bash
         run: |
           set -euo pipefail
+          umask 077
           mkdir -p .private/cdk-source
-          python scripts/deployment/reproducible_build.py --commit "$GITHUB_SHA" > .private/maven.log 2>&1 || { echo 'Pinned Maven build failed; inspect private runner log.'; exit 1; }
-          (cd .infrastructure && pnpm install --frozen-lockfile && pnpm test && pnpm exec cdk synth bible-verse-stack --app 'pnpm exec ts-node bin/bibleverse-source-only.ts' --no-lookups --output ../.private/cdk-source --quiet) > .private/source-synth.log 2>&1 || { echo 'Pinned source synthesis failed; inspect private runner log.'; exit 1; }
-      - uses: aws-actions/configure-aws-credentials@v6
+          # Public source only, before AWS authentication: keep useful build/test diagnostics.
+          python scripts/deployment/reproducible_build.py --commit "$GITHUB_SHA"
+          (cd .infrastructure && pnpm install --frozen-lockfile && pnpm build && pnpm test)
+          # Do not print a synthesized template; public-source synthesis errors remain visible.
+          (cd .infrastructure && pnpm exec cdk synth bible-verse-stack --app 'pnpm exec ts-node bin/bibleverse-source-only.ts' --no-lookups --output ../.private/cdk-source --quiet) > .private/source-synth.stdout
+      - name: Authenticate Bible entry role for planning
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::664759038511:role/GitHubActionsBibleVerseProdDeploy
           aws-region: us-east-1
           role-session-name: bible-entry-${{ github.run_id }}
           allowed-account-ids: '664759038511'
-      - run: python scripts/deployment/bible_deploy.py identity-entry
-      - uses: aws-actions/configure-aws-credentials@v6
+          unset-current-credentials: true
+          role-chaining: false
+      - name: Assume scoped deployment role
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::664759038511:role/BibleVerseCdkDeploy
           role-chaining: true
@@ -97,281 +55,45 @@ jobs:
           aws-region: us-east-1
           role-session-name: bible-java-${{ github.run_id }}
           allowed-account-ids: '664759038511'
-      - id: review
-        if: inputs.mode == 'review'
-        run: python scripts/deployment/java_adapter.py review --out java-receipts/review
-      - name: Persist private record before publishing its bounded reference
-        if: inputs.mode == 'review'
-        uses: ./.github/actions/private-checkpoint
+      - name: Check live baseline and application-only source changes
+        run: python scripts/deployment/simple_deploy.py plan
+      - name: Authenticate fresh Bible entry role for publication
+        uses: aws-actions/configure-aws-credentials@v6
         with:
-          record-path: java-receipts/review/review.json
-          reference-path: java-receipts/review/review.public/record-ref.json
-          deploy-session: bible-java-${{ github.run_id }}
-      - uses: actions/upload-artifact@v6
-        if: inputs.mode == 'review'
+          role-to-assume: arn:aws:iam::664759038511:role/GitHubActionsBibleVerseProdDeploy
+          aws-region: us-east-1
+          role-session-name: bible-entry-${{ github.run_id }}
+          allowed-account-ids: '664759038511'
+          unset-current-credentials: true
+          role-chaining: false
+      - name: Assume scoped publisher role
+        uses: aws-actions/configure-aws-credentials@v6
         with:
-          name: ${{ steps.review.outputs.artifact_name }}
-          path: java-receipts/review/review.public/record-ref.json
-          retention-days: 3
-          if-no-files-found: error
-      - id: operator
-        if: inputs.mode == 'operator-reconcile'
-        run: python scripts/deployment/java_adapter.py operator-reconcile --out java-receipts/operator
-      - name: Persist private record before publishing its bounded reference
-        if: inputs.mode == 'operator-reconcile'
-        uses: ./.github/actions/private-checkpoint
+          role-to-assume: arn:aws:iam::664759038511:role/BibleVerseCdkFilePublisher
+          role-chaining: true
+          role-skip-session-tagging: true
+          aws-region: us-east-1
+          role-session-name: bible-publish-${{ github.run_id }}
+          allowed-account-ids: '664759038511'
+      - name: Publish immutable application JAR
+        run: python scripts/deployment/simple_deploy.py publish
+      - name: Authenticate fresh Bible entry role for deployment
+        uses: aws-actions/configure-aws-credentials@v6
         with:
-          record-path: java-receipts/operator/operator-evidence.json
-          reference-path: java-receipts/operator/operator-evidence.public/record-ref.json
-          deploy-session: bible-java-${{ github.run_id }}
-      - uses: actions/upload-artifact@v6
-        if: inputs.mode == 'operator-reconcile'
+          role-to-assume: arn:aws:iam::664759038511:role/GitHubActionsBibleVerseProdDeploy
+          aws-region: us-east-1
+          role-session-name: bible-entry-${{ github.run_id }}
+          allowed-account-ids: '664759038511'
+          unset-current-credentials: true
+          role-chaining: false
+      - name: Assume scoped deployment role
+        uses: aws-actions/configure-aws-credentials@v6
         with:
-          name: ${{ steps.operator.outputs.artifact_name }}
-          path: java-receipts/operator/operator-evidence.public/record-ref.json
-          retention-days: 3
-          if-no-files-found: error
-      - id: stage0
-        name: Reconcile and checkpoint next action 1
-        if: inputs.mode == 'release'
-        run: python scripts/deployment/java_adapter.py stage --out java-receipts/stage0
-      - name: Persist private record before publishing its bounded reference
-        if: inputs.mode == 'release' && steps.stage0.outputs.complete == 'false'
-        uses: ./.github/actions/private-checkpoint
-        with:
-          record-path: java-receipts/stage0/operation.json
-          reference-path: java-receipts/stage0/operation.public/record-ref.json
-          deploy-session: bible-java-${{ github.run_id }}
-      - id: intent0
-        name: Persist immutable intent before AWS mutation 1
-        if: inputs.mode == 'release' && steps.stage0.outputs.complete == 'false'
-        uses: actions/upload-artifact@v6
-        with:
-          name: ${{ steps.stage0.outputs.artifact_name }}
-          path: java-receipts/stage0/operation.public/record-ref.json
-          retention-days: 3
-          if-no-files-found: error
-      - id: submit0
-        name: Verify uploaded intent and submit once 1
-        if: inputs.mode == 'release' && steps.stage0.outputs.complete == 'false'
-        env:
-          INTENT_ARTIFACT_ID: ${{ steps.intent0.outputs.artifact-id }}
-          INTENT_ARTIFACT_DIGEST: sha256:${{ steps.intent0.outputs.artifact-digest }}
-        run: python scripts/deployment/java_adapter.py submit --out java-receipts/stage0
-      - name: Persist private record before publishing its bounded reference
-        if: inputs.mode == 'release' && steps.submit0.outcome == 'success'
-        uses: ./.github/actions/private-checkpoint
-        with:
-          record-path: java-receipts/stage0/response.json
-          reference-path: java-receipts/stage0/response.public/record-ref.json
-          deploy-session: bible-java-${{ github.run_id }}
-      - id: response0
-        name: Persist successful own response 1
-        if: inputs.mode == 'release' && steps.submit0.outcome == 'success'
-        uses: actions/upload-artifact@v6
-        with:
-          name: ${{ steps.submit0.outputs.artifact_name }}
-          path: java-receipts/stage0/response.public/record-ref.json
-          retention-days: 3
-          if-no-files-found: error
-      - id: stage1
-        name: Reconcile and checkpoint next action 2
-        if: inputs.mode == 'release' && steps.stage0.outputs.complete == 'false'
-        env:
-          RESUME_ARTIFACT_ID: ${{ steps.intent0.outputs.artifact-id }}
-          RESUME_ARTIFACT_DIGEST: sha256:${{ steps.intent0.outputs.artifact-digest }}
-          RESPONSE_ARTIFACT_ID: ${{ steps.response0.outputs.artifact-id }}
-          RESPONSE_ARTIFACT_DIGEST: sha256:${{ steps.response0.outputs.artifact-digest }}
-        run: python scripts/deployment/java_adapter.py stage --out java-receipts/stage1
-      - name: Persist private record before publishing its bounded reference
-        if: inputs.mode == 'release' && steps.stage0.outputs.complete == 'false' && steps.stage1.outputs.complete == 'false'
-        uses: ./.github/actions/private-checkpoint
-        with:
-          record-path: java-receipts/stage1/operation.json
-          reference-path: java-receipts/stage1/operation.public/record-ref.json
-          deploy-session: bible-java-${{ github.run_id }}
-      - id: intent1
-        name: Persist immutable intent before AWS mutation 2
-        if: inputs.mode == 'release' && steps.stage0.outputs.complete == 'false' && steps.stage1.outputs.complete == 'false'
-        uses: actions/upload-artifact@v6
-        with:
-          name: ${{ steps.stage1.outputs.artifact_name }}
-          path: java-receipts/stage1/operation.public/record-ref.json
-          retention-days: 3
-          if-no-files-found: error
-      - id: submit1
-        name: Verify uploaded intent and submit once 2
-        if: inputs.mode == 'release' && steps.stage0.outputs.complete == 'false' && steps.stage1.outputs.complete == 'false'
-        env:
-          INTENT_ARTIFACT_ID: ${{ steps.intent1.outputs.artifact-id }}
-          INTENT_ARTIFACT_DIGEST: sha256:${{ steps.intent1.outputs.artifact-digest }}
-        run: python scripts/deployment/java_adapter.py submit --out java-receipts/stage1
-      - name: Persist private record before publishing its bounded reference
-        if: inputs.mode == 'release' && steps.submit1.outcome == 'success'
-        uses: ./.github/actions/private-checkpoint
-        with:
-          record-path: java-receipts/stage1/response.json
-          reference-path: java-receipts/stage1/response.public/record-ref.json
-          deploy-session: bible-java-${{ github.run_id }}
-      - id: response1
-        name: Persist successful own response 2
-        if: inputs.mode == 'release' && steps.submit1.outcome == 'success'
-        uses: actions/upload-artifact@v6
-        with:
-          name: ${{ steps.submit1.outputs.artifact_name }}
-          path: java-receipts/stage1/response.public/record-ref.json
-          retention-days: 3
-          if-no-files-found: error
-      - id: stage2
-        name: Reconcile and checkpoint next action 3
-        if: inputs.mode == 'release' && steps.stage1.outputs.complete == 'false'
-        env:
-          RESUME_ARTIFACT_ID: ${{ steps.intent1.outputs.artifact-id }}
-          RESUME_ARTIFACT_DIGEST: sha256:${{ steps.intent1.outputs.artifact-digest }}
-          RESPONSE_ARTIFACT_ID: ${{ steps.response1.outputs.artifact-id }}
-          RESPONSE_ARTIFACT_DIGEST: sha256:${{ steps.response1.outputs.artifact-digest }}
-        run: python scripts/deployment/java_adapter.py stage --out java-receipts/stage2
-      - name: Persist private record before publishing its bounded reference
-        if: inputs.mode == 'release' && steps.stage1.outputs.complete == 'false' && steps.stage2.outputs.complete == 'false'
-        uses: ./.github/actions/private-checkpoint
-        with:
-          record-path: java-receipts/stage2/operation.json
-          reference-path: java-receipts/stage2/operation.public/record-ref.json
-          deploy-session: bible-java-${{ github.run_id }}
-      - id: intent2
-        name: Persist immutable intent before AWS mutation 3
-        if: inputs.mode == 'release' && steps.stage1.outputs.complete == 'false' && steps.stage2.outputs.complete == 'false'
-        uses: actions/upload-artifact@v6
-        with:
-          name: ${{ steps.stage2.outputs.artifact_name }}
-          path: java-receipts/stage2/operation.public/record-ref.json
-          retention-days: 3
-          if-no-files-found: error
-      - id: submit2
-        name: Verify uploaded intent and submit once 3
-        if: inputs.mode == 'release' && steps.stage1.outputs.complete == 'false' && steps.stage2.outputs.complete == 'false'
-        env:
-          INTENT_ARTIFACT_ID: ${{ steps.intent2.outputs.artifact-id }}
-          INTENT_ARTIFACT_DIGEST: sha256:${{ steps.intent2.outputs.artifact-digest }}
-        run: python scripts/deployment/java_adapter.py submit --out java-receipts/stage2
-      - name: Persist private record before publishing its bounded reference
-        if: inputs.mode == 'release' && steps.submit2.outcome == 'success'
-        uses: ./.github/actions/private-checkpoint
-        with:
-          record-path: java-receipts/stage2/response.json
-          reference-path: java-receipts/stage2/response.public/record-ref.json
-          deploy-session: bible-java-${{ github.run_id }}
-      - id: response2
-        name: Persist successful own response 3
-        if: inputs.mode == 'release' && steps.submit2.outcome == 'success'
-        uses: actions/upload-artifact@v6
-        with:
-          name: ${{ steps.submit2.outputs.artifact_name }}
-          path: java-receipts/stage2/response.public/record-ref.json
-          retention-days: 3
-          if-no-files-found: error
-      - id: stage3
-        name: Reconcile and checkpoint next action 4
-        if: inputs.mode == 'release' && steps.stage2.outputs.complete == 'false'
-        env:
-          RESUME_ARTIFACT_ID: ${{ steps.intent2.outputs.artifact-id }}
-          RESUME_ARTIFACT_DIGEST: sha256:${{ steps.intent2.outputs.artifact-digest }}
-          RESPONSE_ARTIFACT_ID: ${{ steps.response2.outputs.artifact-id }}
-          RESPONSE_ARTIFACT_DIGEST: sha256:${{ steps.response2.outputs.artifact-digest }}
-        run: python scripts/deployment/java_adapter.py stage --out java-receipts/stage3
-      - name: Persist private record before publishing its bounded reference
-        if: inputs.mode == 'release' && steps.stage2.outputs.complete == 'false' && steps.stage3.outputs.complete == 'false'
-        uses: ./.github/actions/private-checkpoint
-        with:
-          record-path: java-receipts/stage3/operation.json
-          reference-path: java-receipts/stage3/operation.public/record-ref.json
-          deploy-session: bible-java-${{ github.run_id }}
-      - id: intent3
-        name: Persist immutable intent before AWS mutation 4
-        if: inputs.mode == 'release' && steps.stage2.outputs.complete == 'false' && steps.stage3.outputs.complete == 'false'
-        uses: actions/upload-artifact@v6
-        with:
-          name: ${{ steps.stage3.outputs.artifact_name }}
-          path: java-receipts/stage3/operation.public/record-ref.json
-          retention-days: 3
-          if-no-files-found: error
-      - id: submit3
-        name: Verify uploaded intent and submit once 4
-        if: inputs.mode == 'release' && steps.stage2.outputs.complete == 'false' && steps.stage3.outputs.complete == 'false'
-        env:
-          INTENT_ARTIFACT_ID: ${{ steps.intent3.outputs.artifact-id }}
-          INTENT_ARTIFACT_DIGEST: sha256:${{ steps.intent3.outputs.artifact-digest }}
-        run: python scripts/deployment/java_adapter.py submit --out java-receipts/stage3
-      - name: Persist private record before publishing its bounded reference
-        if: inputs.mode == 'release' && steps.submit3.outcome == 'success'
-        uses: ./.github/actions/private-checkpoint
-        with:
-          record-path: java-receipts/stage3/response.json
-          reference-path: java-receipts/stage3/response.public/record-ref.json
-          deploy-session: bible-java-${{ github.run_id }}
-      - id: response3
-        name: Persist successful own response 4
-        if: inputs.mode == 'release' && steps.submit3.outcome == 'success'
-        uses: actions/upload-artifact@v6
-        with:
-          name: ${{ steps.submit3.outputs.artifact_name }}
-          path: java-receipts/stage3/response.public/record-ref.json
-          retention-days: 3
-          if-no-files-found: error
-      - id: stage4
-        name: Reconcile and checkpoint next action 5
-        if: inputs.mode == 'release' && steps.stage3.outputs.complete == 'false'
-        env:
-          RESUME_ARTIFACT_ID: ${{ steps.intent3.outputs.artifact-id }}
-          RESUME_ARTIFACT_DIGEST: sha256:${{ steps.intent3.outputs.artifact-digest }}
-          RESPONSE_ARTIFACT_ID: ${{ steps.response3.outputs.artifact-id }}
-          RESPONSE_ARTIFACT_DIGEST: sha256:${{ steps.response3.outputs.artifact-digest }}
-        run: python scripts/deployment/java_adapter.py stage --out java-receipts/stage4
-      - name: Persist private record before publishing its bounded reference
-        if: inputs.mode == 'release' && steps.stage3.outputs.complete == 'false' && steps.stage4.outputs.complete == 'false'
-        uses: ./.github/actions/private-checkpoint
-        with:
-          record-path: java-receipts/stage4/operation.json
-          reference-path: java-receipts/stage4/operation.public/record-ref.json
-          deploy-session: bible-java-${{ github.run_id }}
-      - id: intent4
-        name: Persist immutable intent before AWS mutation 5
-        if: inputs.mode == 'release' && steps.stage3.outputs.complete == 'false' && steps.stage4.outputs.complete == 'false'
-        uses: actions/upload-artifact@v6
-        with:
-          name: ${{ steps.stage4.outputs.artifact_name }}
-          path: java-receipts/stage4/operation.public/record-ref.json
-          retention-days: 3
-          if-no-files-found: error
-      - id: submit4
-        name: Verify uploaded intent and submit once 5
-        if: inputs.mode == 'release' && steps.stage3.outputs.complete == 'false' && steps.stage4.outputs.complete == 'false'
-        env:
-          INTENT_ARTIFACT_ID: ${{ steps.intent4.outputs.artifact-id }}
-          INTENT_ARTIFACT_DIGEST: sha256:${{ steps.intent4.outputs.artifact-digest }}
-        run: python scripts/deployment/java_adapter.py submit --out java-receipts/stage4
-      - name: Persist private record before publishing its bounded reference
-        if: inputs.mode == 'release' && steps.submit4.outcome == 'success'
-        uses: ./.github/actions/private-checkpoint
-        with:
-          record-path: java-receipts/stage4/response.json
-          reference-path: java-receipts/stage4/response.public/record-ref.json
-          deploy-session: bible-java-${{ github.run_id }}
-      - id: response4
-        name: Persist successful own response 5
-        if: inputs.mode == 'release' && steps.submit4.outcome == 'success'
-        uses: actions/upload-artifact@v6
-        with:
-          name: ${{ steps.submit4.outputs.artifact_name }}
-          path: java-receipts/stage4/response.public/record-ref.json
-          retention-days: 3
-          if-no-files-found: error
-      - name: Require completed reconciliation
-        if: inputs.mode == 'release'
-        env:
-          S0: ${{ steps.stage0.outputs.complete }}
-          S1: ${{ steps.stage1.outputs.complete }}
-          S2: ${{ steps.stage2.outputs.complete }}
-          S3: ${{ steps.stage3.outputs.complete }}
-          S4: ${{ steps.stage4.outputs.complete }}
-        run: python -c "import os, sys; sys.exit(0 if 'true' in [os.environ.get('S'+str(i)) for i in range(5)] else 'Release not complete; reconcile durable intent')"
+          role-to-assume: arn:aws:iam::664759038511:role/BibleVerseCdkDeploy
+          role-chaining: true
+          role-skip-session-tagging: true
+          aws-region: us-east-1
+          role-session-name: bible-java-${{ github.run_id }}
+          allowed-account-ids: '664759038511'
+      - name: Deploy app versions, verify readiness, then move live aliases
+        run: python scripts/deployment/simple_deploy.py deploy
