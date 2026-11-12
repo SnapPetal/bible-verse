@@ -139,6 +139,28 @@ def derive(source, live, asset, old_versions, source_commit):
     return result
 
 
+def phase1_plan(source, live, asset, old_versions, source_commit):
+    """Recognize only the exact completed first phase of this built application."""
+    projection = copy.deepcopy(live)
+    expected = set()
+    for fid, info in j.FUNCTIONS.items():
+        old_id = j.version_ref(live['Resources'][info['alias']])
+        new_id = j.version_ref(source['Resources'][info['alias']])
+        d.need(old_id != new_id and new_id in live['Resources'], 'Completed phase one versions missing')
+        expected.update((old_id, new_id))
+        projection['Resources'].pop(new_id)
+        code = live['Resources'][fid]['Properties']['Code']
+        d.need(code == {'S3Bucket': d.BUCKET, 'S3Key': asset['key'], 'S3ObjectVersion': asset['version_id']},
+               'Completed phase one artifact differs')
+    d.need({k for k, v in live['Resources'].items() if v['Type'] == 'AWS::Lambda::Version'} == expected,
+           'Unexpected managed versions in completed phase one')
+    # This projection is comparison-only. It is never submitted as a template.
+    plan = derive(source, projection, asset, old_versions, source_commit)
+    d.need(not plan['noop'] and plan['phase1'] == live, 'Live template is not exact completed phase one')
+    plan['start_phase'] = 2
+    return plan
+
+
 def validate_changes(plan, phase, changeset, template, created):
     """Only this process's successful CreateChangeSet response can lead to execution."""
     name = operation_name(plan['source_commit'], phase)
@@ -390,7 +412,11 @@ class Runner:
         self.fresh(plan['source_commit'])
         self.controls(activation)
         self.verify_asset(plan['asset'])
-        for phase in (1, 2):
+        ready = None
+        if plan.get('start_phase') == 2:
+            ready = self.observe(plan['phase1'], plan['old_versions'], plan['versions'])
+            plan['ready_versions'] = {fid: value['new_version'] for fid, value in ready.items()}
+        for phase in ((2,) if plan.get('start_phase') == 2 else (1, 2)):
             before = 'baseline' if phase == 1 else 'phase1'
             expected = self.observe(plan[before], plan['old_versions'], None if phase == 1 else plan['versions'])
             source_check()
@@ -433,6 +459,8 @@ class Runner:
 
 def context():
     activation = d.java_active()
+    import select_application
+    select_application.select()  # Recheck pinned application ancestry and exact allowed diff.
     source = os.environ.get('GITHUB_SHA', '')
     d.need(os.environ.get('GITHUB_REPOSITORY') == REPO and os.environ.get('GITHUB_REF') == 'refs/heads/main' and
            re.fullmatch('[a-f0-9]{40}', source), 'Wrong repository, branch or source')
@@ -491,10 +519,24 @@ def main():
         source, data = d.load(args.template), args.jar.read_bytes()
         check_staged_jar(source, args.template, data)
         live = runner.template()
-        old = runner.observe(live)
-        # Validate scope and inline size before publishing. This marker is never submitted.
-        asset = {**jar_asset(data), 'version_id': 'LOCAL-UNPUBLISHED'}
-        plan = derive(source, live, asset, old, source_commit)
+        import select_application
+        _, application_commit = select_application.select()
+        if application_commit != source_commit:
+            # A manual retry may finish phase two only when the original build is identical.
+            versions = {fid: {'new_logical': j.version_ref(source['Resources'][info['alias']])}
+                        for fid, info in j.FUNCTIONS.items()}
+            old = runner.observe(live, versions=versions)
+            code_refs = [live['Resources'][fid]['Properties']['Code'] for fid in j.FUNCTIONS]
+            d.need(all(code == code_refs[0] for code in code_refs), 'Mixed phase one artifacts')
+            asset = {**jar_asset(data), 'version_id': code_refs[0].get('S3ObjectVersion')}
+            runner.verify_asset(asset)
+            plan = phase1_plan(source, live, asset, old, source_commit)
+        else:
+            old = runner.observe(live)
+            # Validate scope and inline size before publishing. This marker is never submitted.
+            asset = {**jar_asset(data), 'version_id': 'LOCAL-UNPUBLISHED'}
+            plan = derive(source, live, asset, old, source_commit)
+        plan['application_commit'] = application_commit
         if plan['noop']:
             for phase in (1, 2):
                 runner.describe(operation_name(source_commit, phase))
@@ -512,6 +554,11 @@ def main():
     state = {'directory': directory, 'plan': plan}
     if args.mode == 'publish':
         runner.actor('BibleVerseCdkFilePublisher')
+        if plan.get('start_phase') == 2:
+            d.need(jar_asset(args.jar.read_bytes()) == {k: v for k, v in plan['asset'].items() if k != 'version_id'},
+                   'Built JAR changed')
+            runner.verify_asset(plan['asset'])
+            return  # Existing immutable phase-one object; never publish or rebuild versions.
         asset = runner.publish(args.jar.read_bytes(), state)
         plan = derive(plan['source'], plan['baseline'], asset, plan['old_versions'], source_commit)
         d.save(path, {'run_id': os.environ['GITHUB_RUN_ID'], 'plan': plan})
@@ -527,4 +574,5 @@ if __name__ == '__main__':
     except Exception as error:
         # Static stage/operation/reason only; no raw AWS or private configuration.
         raise SystemExit(failure_message(error)) from None
+
 
