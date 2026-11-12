@@ -46,7 +46,11 @@ jobs:
           umask 077
           mkdir -p .private/cdk-source
           # Public source only, before AWS authentication: keep useful build/test diagnostics.
-          python scripts/deployment/reproducible_build.py --commit "$APPLICATION_COMMIT"
+          if [[ "$APPLICATION_COMMIT" == "$GITHUB_SHA" ]]; then
+            python scripts/deployment/reproducible_build.py --commit "$GITHUB_SHA"
+          else
+            python scripts/deployment/reproducible_build.py --commit "$APPLICATION_COMMIT"
+          fi
           (cd .infrastructure && pnpm install --frozen-lockfile && pnpm build && pnpm test)
           # Do not print a synthesized template; public-source synthesis errors remain visible.
           (cd .infrastructure && pnpm exec cdk synth bible-verse-stack --app 'pnpm exec ts-node bin/bibleverse-source-only.ts' --no-lookups --output ../.private/cdk-source --quiet) > .private/source-synth.stdout

@@ -16,6 +16,7 @@ ALLOWED_DIFFS = frozenset({
     'scripts/deployment/test_simple_deploy.py',
     'scripts/deployment/select_application.py',
     'scripts/deployment/test_select_application.py',
+    'scripts/deployment/test_private_records.py',
 })
 
 
@@ -71,3 +72,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

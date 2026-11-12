@@ -66,8 +66,20 @@ class Privacy(unittest.TestCase):
  def test_normal_workflow_has_no_private_or_reference_artifact_uploads(self):
   root=Path(__file__).resolve().parents[2]
   text=(root/'.github/workflows/java-release.yml').read_text()
-  for forbidden in ['upload-artifact','private-checkpoint','inputs:','bundle_ref','review_pins','java_adapter.py','cdk deploy']:
+  for forbidden in ['upload-artifact','private-checkpoint','bundle_ref','review_pins','java_adapter.py','cdk deploy']:
    self.assertNotIn(forbidden,text)
+  # The only manual input is a source SHA, not a private template or reference.
+  dispatch="""  workflow_dispatch:
+    inputs:
+      application_commit:
+        description: 'Optional exact ancestor application commit for an already-completed phase-one retry'
+        required: false
+        type: string
+"""
+  self.assertEqual(text.count(dispatch),1)
+  self.assertNotIn('inputs:',text.replace(dispatch,''))
+  self.assertIn('python scripts/deployment/select_application.py --prepare',text)
+  self.assertLess(text.index('select_application.py --prepare'),text.index('aws-actions/configure-aws-credentials'))
   for command in ['simple_deploy.py plan','simple_deploy.py publish','simple_deploy.py deploy']:
    self.assertIn(command,text)
   self.assertIn('cancel-in-progress: false',text)
@@ -94,3 +106,4 @@ class VersionFormat(unittest.TestCase):
   for value in ['', 'null','a'*1025,'unsafe?query','unsafe\nvalue','https://secret.example','Bearer secret']:
    with self.subTest(value=value[:20]),self.assertRaises(ValueError):p.reference(b'{}',value)
 if __name__=='__main__':unittest.main()
+
