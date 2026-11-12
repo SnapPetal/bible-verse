@@ -147,6 +147,76 @@ def runner(p):
 
 
 class SimpleDeploy(unittest.TestCase):
+    def test_stack_waiter_ignores_deleted_changeset_and_checks_exact_template(self):
+        p = plan()
+        r, cloud = runner(p)
+        before = {'StackStatus': 'UPDATE_ROLLBACK_COMPLETE', 'LastUpdatedTime': 'old'}
+        states = [before, {'StackStatus': 'UPDATE_IN_PROGRESS', 'LastUpdatedTime': 'new'},
+                  {'StackStatus': 'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS', 'LastUpdatedTime': 'new'},
+                  {'StackStatus': 'UPDATE_COMPLETE', 'LastUpdatedTime': 'new'}]
+        r.stack = lambda: states.pop(0)
+        r.template = lambda: p['phase1']
+        r.describe = lambda _: self.fail('Must not poll a change set after execution')
+        self.assertEqual(r.wait_stack(p['phase1'], before)['StackStatus'], 'UPDATE_COMPLETE')
+
+    def test_stack_waiter_rejects_rollback_and_wrong_completed_template(self):
+        p = plan()
+        before = {'StackStatus': 'UPDATE_COMPLETE', 'LastUpdatedTime': 'old'}
+        for status in ('UPDATE_ROLLBACK_IN_PROGRESS', 'UPDATE_ROLLBACK_COMPLETE',
+                       'UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS', 'UPDATE_ROLLBACK_FAILED',
+                       'DELETE_IN_PROGRESS', 'UPDATE_COMPLETE'):
+            r, _ = runner(p)
+            r.stack = lambda status=status: {'StackStatus': status, 'LastUpdatedTime': 'new'}
+            r.template = lambda: p['baseline']
+            with self.subTest(status=status), self.assertRaises(ValueError):
+                r.wait_stack(p['phase1'], before)
+
+    def test_stack_waiter_never_accepts_stale_baseline_or_timeout_as_success(self):
+        p = plan()
+        r, _ = runner(p)
+        before = {'StackStatus': 'UPDATE_COMPLETE', 'LastUpdatedTime': 'old'}
+        r.stack = lambda: before
+        r.template = lambda: p['baseline']
+        with self.assertRaisesRegex(ValueError, 'still pending'):
+            r.wait_stack(p['phase1'], before)
+
+    def test_completed_rollback_requires_exact_baseline_and_ready_runtime(self):
+        p = plan()
+        r, cloud = runner(p)
+        original = r.stack
+        r.stack = lambda: {**original(), 'StackStatus': 'UPDATE_ROLLBACK_COMPLETE'}
+        r.fresh(SOURCE)
+        self.assertEqual(set(r.observe(p['baseline'])), set(j.FUNCTIONS))
+        changed = copy.deepcopy(p['baseline'])
+        changed['Description'] = 'unexpected drift'
+        with self.assertRaises(ValueError):
+            r.observe(changed)
+        cloud.phase = 1  # Latest code no longer equals the old published version.
+        with self.assertRaises(ValueError):
+            r.observe(p['baseline'])
+
+    def test_incomplete_failed_or_cleanup_stack_never_retried(self):
+        p = plan()
+        for status in ('UPDATE_IN_PROGRESS', 'UPDATE_ROLLBACK_IN_PROGRESS',
+                       'UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS', 'UPDATE_ROLLBACK_FAILED',
+                       'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS', 'ROLLBACK_COMPLETE'):
+            r, _ = runner(p)
+            r.stack = lambda status=status: {'StackStatus': status}
+            with self.subTest(status=status):
+                with self.assertRaises(ValueError):
+                    r.fresh(SOURCE)
+                with self.assertRaises(ValueError):
+                    r.observe(p['baseline'])
+
+    def test_rollback_complete_does_not_bypass_existing_operation_gate(self):
+        p = plan()
+        r, cloud = runner(p)
+        original = r.stack
+        r.stack = lambda: {**original(), 'StackStatus': 'UPDATE_ROLLBACK_COMPLETE'}
+        cloud.sets[s.operation_name(SOURCE, 1)] = changes(p, 1)
+        with self.assertRaisesRegex(ValueError, 'Prior source operation exists'):
+            r.fresh(SOURCE)
+
     def test_plan_is_only_code_versions_aliases_and_preserves_metadata(self):
         p = plan()
         for phase in ('phase1', 'phase2'):
@@ -181,6 +251,22 @@ class SimpleDeploy(unittest.TestCase):
         self.assertEqual({v['version'] for v in old.values()}, {'101', '207'})
         self.assertNotIn('must-not-be-persisted', json.dumps(old))
         self.assertTrue(all('configuration_sha256' in v for v in old.values()))
+
+    def test_full_release_succeeds_when_executed_change_sets_disappear(self):
+        p = plan()
+        cloud = Cloud(p)
+        def aws(service, operation, **arguments):
+            response = cloud.aws(service, operation, **arguments)
+            if operation == 'execute-change-set':
+                cloud.sets.clear()
+            return response
+        r = s.Runner(aws, sleep=lambda _: None)
+        r.controls = lambda _: None
+        with tempfile.TemporaryDirectory() as temporary:
+            r.deploy({'directory': Path(temporary), 'plan': p}, {})
+            self.assertTrue((Path(temporary) / 'complete.json').exists())
+        self.assertEqual(cloud.current, p['phase2'])
+        self.assertEqual([x[1] for x in cloud.calls].count('execute-change-set'), 2)
 
     def test_full_fake_release_has_two_creates_and_executes_and_one_jar(self):
         p = plan()
@@ -373,3 +459,4 @@ class SimpleDeploy(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
