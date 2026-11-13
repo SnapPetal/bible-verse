@@ -24,6 +24,8 @@ import source_promotion as promotion
 REPO = 'SnapPetal/bible-verse'
 WORKFLOW = '.github/workflows/java-release.yml'
 CAPABILITIES = ['CAPABILITY_NAMED_IAM']
+# Rollback-complete is stable, but still requires exact baseline, runtime and prior-operation checks.
+STABLE_STACK_STATUSES = ('UPDATE_COMPLETE', 'UPDATE_ROLLBACK_COMPLETE')
 DIAGNOSTIC = {'stage': 'source-check', 'operation': 'none'}
 WRITE_OPERATIONS = {'put-object', 'create-change-set', 'execute-change-set'}
 
@@ -137,6 +139,28 @@ def derive(source, live, asset, old_versions, source_commit):
     return result
 
 
+def phase1_plan(source, live, asset, old_versions, source_commit):
+    """Recognize only the exact completed first phase of this built application."""
+    projection = copy.deepcopy(live)
+    expected = set()
+    for fid, info in j.FUNCTIONS.items():
+        old_id = j.version_ref(live['Resources'][info['alias']])
+        new_id = j.version_ref(source['Resources'][info['alias']])
+        d.need(old_id != new_id and new_id in live['Resources'], 'Completed phase one versions missing')
+        expected.update((old_id, new_id))
+        projection['Resources'].pop(new_id)
+        code = live['Resources'][fid]['Properties']['Code']
+        d.need(code == {'S3Bucket': d.BUCKET, 'S3Key': asset['key'], 'S3ObjectVersion': asset['version_id']},
+               'Completed phase one artifact differs')
+    d.need({k for k, v in live['Resources'].items() if v['Type'] == 'AWS::Lambda::Version'} == expected,
+           'Unexpected managed versions in completed phase one')
+    # This projection is comparison-only. It is never submitted as a template.
+    plan = derive(source, projection, asset, old_versions, source_commit)
+    d.need(not plan['noop'] and plan['phase1'] == live, 'Live template is not exact completed phase one')
+    plan['start_phase'] = 2
+    return plan
+
+
 def validate_changes(plan, phase, changeset, template, created):
     """Only this process's successful CreateChangeSet response can lead to execution."""
     name = operation_name(plan['source_commit'], phase)
@@ -237,7 +261,7 @@ class Runner:
 
     def fresh(self, source):
         stack = self.stack()
-        d.need(stack['StackStatus'] == 'UPDATE_COMPLETE', 'Stack is not stable; inspect before retrying')
+        d.need(stack['StackStatus'] in STABLE_STACK_STATUSES, 'Stack is not stable; inspect before retrying')
         prior = stack.get('ChangeSetId', '')
         if prior.startswith(f'arn:aws:cloudformation:{d.REGION}:{d.ACCOUNT}:changeSet/bible-isolated-update-java-'):
             observed = self.describe(prior)
@@ -274,7 +298,7 @@ class Runner:
         return physical, number
 
     def observe(self, template, old_versions=None, versions=None, aliases_new=False):
-        d.need(self.stack()['StackStatus'] == 'UPDATE_COMPLETE' and self.template() == template, 'Stack changed or is incomplete')
+        d.need(self.stack()['StackStatus'] in STABLE_STACK_STATUSES and self.template() == template, 'Stack changed or is incomplete')
         observations = {}
         for fid, info in j.FUNCTIONS.items():
             alias = self.aws('lambda', 'get-alias', function_name=info['name'], name='live')
@@ -364,12 +388,35 @@ class Runner:
             self.sleep(5)
         raise ValueError('CloudFormation still pending after ten minutes; inspect without retry')
 
+    def wait_stack(self, expected_template, before):
+        # ExecuteChangeSet starts an asynchronous stack update. Its change set may
+        # no longer be retrievable; DescribeStacks is the execution status source.
+        # Tolerate an unchanged pre-execution snapshot, never accept it as success.
+        identity = lambda value: tuple(value.get(k) for k in ('StackStatus', 'LastUpdatedTime', 'ChangeSetId'))
+        progressed = False
+        for _ in range(120):
+            stack = self.stack()  # Pins the exact stack ARN and execution role.
+            status = stack['StackStatus']
+            if status == 'UPDATE_COMPLETE' and self.template() == expected_template:
+                return stack
+            unchanged = identity(stack) == identity(before)
+            d.need((not progressed and unchanged) or status in
+                   ('UPDATE_IN_PROGRESS', 'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS'),
+                   'CloudFormation stack update failed or template differs; inspect without retry')
+            progressed = progressed or not unchanged
+            self.sleep(5)
+        raise ValueError('CloudFormation stack still pending after ten minutes; inspect without retry')
+
     def deploy(self, state, activation, source_check=lambda: None):
         plan, directory = state['plan'], state['directory']
         self.fresh(plan['source_commit'])
         self.controls(activation)
         self.verify_asset(plan['asset'])
-        for phase in (1, 2):
+        ready = None
+        if plan.get('start_phase') == 2:
+            ready = self.observe(plan['phase1'], plan['old_versions'], plan['versions'])
+            plan['ready_versions'] = {fid: value['new_version'] for fid, value in ready.items()}
+        for phase in ((2,) if plan.get('start_phase') == 2 else (1, 2)):
             before = 'baseline' if phase == 1 else 'phase1'
             expected = self.observe(plan[before], plan['old_versions'], None if phase == 1 else plan['versions'])
             source_check()
@@ -396,11 +443,10 @@ class Runner:
             validate_changes(plan, phase, changeset, self.template(name), created)
             self.validation_gate(changeset)
             d.exclusive_intent(directory / f'phase{phase}-execute-intent.json', {'name': name, 'id': created['Id']})
+            before_execute = self.stack()
             self.aws('cloudformation', 'execute-change-set', stack_name=d.STACK, change_set_name=created['Id'],
                      client_request_token=digest([name, 'execute']))
-            completed = self.wait_change(name, execute=True)
-            d.need(completed.get('ChangeSetId') == created['Id'] and completed.get('StackId') == d.STACK,
-                   'Execution receipt differs')
+            self.wait_stack(plan[f'phase{phase}'], before_execute)
             # Phase one must be fully Active/On before the alias change can even be created.
             result = self.observe(plan[f'phase{phase}'], plan['old_versions'], plan['versions'], aliases_new=phase == 2)
             if phase == 1:
@@ -413,6 +459,8 @@ class Runner:
 
 def context():
     activation = d.java_active()
+    import select_application
+    select_application.select()  # Recheck pinned application ancestry and exact allowed diff.
     source = os.environ.get('GITHUB_SHA', '')
     d.need(os.environ.get('GITHUB_REPOSITORY') == REPO and os.environ.get('GITHUB_REF') == 'refs/heads/main' and
            re.fullmatch('[a-f0-9]{40}', source), 'Wrong repository, branch or source')
@@ -466,15 +514,29 @@ def main():
     if args.mode == 'plan':
         d.need(not path.exists(), 'Existing local operation; inspect without rerunning')
         runner.actor('BibleVerseCdkDeploy')
-        d.need(runner.stack()['StackStatus'] == 'UPDATE_COMPLETE', 'Stack is not stable')
+        d.need(runner.stack()['StackStatus'] in STABLE_STACK_STATUSES, 'Stack is not stable')
         runner.controls(activation)
         source, data = d.load(args.template), args.jar.read_bytes()
         check_staged_jar(source, args.template, data)
         live = runner.template()
-        old = runner.observe(live)
-        # Validate scope and inline size before publishing. This marker is never submitted.
-        asset = {**jar_asset(data), 'version_id': 'LOCAL-UNPUBLISHED'}
-        plan = derive(source, live, asset, old, source_commit)
+        import select_application
+        _, application_commit = select_application.select()
+        if application_commit != source_commit:
+            # A manual retry may finish phase two only when the original build is identical.
+            versions = {fid: {'new_logical': j.version_ref(source['Resources'][info['alias']])}
+                        for fid, info in j.FUNCTIONS.items()}
+            old = runner.observe(live, versions=versions)
+            code_refs = [live['Resources'][fid]['Properties']['Code'] for fid in j.FUNCTIONS]
+            d.need(all(code == code_refs[0] for code in code_refs), 'Mixed phase one artifacts')
+            asset = {**jar_asset(data), 'version_id': code_refs[0].get('S3ObjectVersion')}
+            runner.verify_asset(asset)
+            plan = phase1_plan(source, live, asset, old, source_commit)
+        else:
+            old = runner.observe(live)
+            # Validate scope and inline size before publishing. This marker is never submitted.
+            asset = {**jar_asset(data), 'version_id': 'LOCAL-UNPUBLISHED'}
+            plan = derive(source, live, asset, old, source_commit)
+        plan['application_commit'] = application_commit
         if plan['noop']:
             for phase in (1, 2):
                 runner.describe(operation_name(source_commit, phase))
@@ -492,6 +554,11 @@ def main():
     state = {'directory': directory, 'plan': plan}
     if args.mode == 'publish':
         runner.actor('BibleVerseCdkFilePublisher')
+        if plan.get('start_phase') == 2:
+            d.need(jar_asset(args.jar.read_bytes()) == {k: v for k, v in plan['asset'].items() if k != 'version_id'},
+                   'Built JAR changed')
+            runner.verify_asset(plan['asset'])
+            return  # Existing immutable phase-one object; never publish or rebuild versions.
         asset = runner.publish(args.jar.read_bytes(), state)
         plan = derive(plan['source'], plan['baseline'], asset, plan['old_versions'], source_commit)
         d.save(path, {'run_id': os.environ['GITHUB_RUN_ID'], 'plan': plan})
@@ -507,3 +574,5 @@ if __name__ == '__main__':
     except Exception as error:
         # Static stage/operation/reason only; no raw AWS or private configuration.
         raise SystemExit(failure_message(error)) from None
+
+

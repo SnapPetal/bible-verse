@@ -147,6 +147,179 @@ def runner(p):
 
 
 class SimpleDeploy(unittest.TestCase):
+    def test_main_pinned_plan_publish_deploy_full_path(self):
+        import os
+        import sys
+        p = plan()
+        r, cloud = runner(p)
+        cloud.phase, cloud.current = 1, copy.deepcopy(p['phase1'])
+        r.actor = lambda _: None
+        p['ready_versions'] = {fid: str(int(v['version']) + 1) for fid, v in p['old_versions'].items()}
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            template, jar, state = root / 'source.json', root / 'app.jar', root / 'state'
+            template.write_text(json.dumps(p['source']))
+            jar.write_bytes(DATA)
+            (root / ('asset.' + 'e' * 64 + '.jar')).write_bytes(DATA)
+            with patch.object(s, 'context', return_value=({}, SOURCE)), patch.object(s, 'Runner', return_value=r), \
+                    patch('select_application.select', return_value=(root, 'b' * 40)), \
+                    patch.dict(os.environ, {'GITHUB_RUN_ID': '123'}):
+                for mode in ('plan', 'publish', 'deploy'):
+                    with patch.object(sys, 'argv', ['simple_deploy.py', mode, '--state', str(state),
+                                                  '--template', str(template), '--jar', str(jar)]):
+                        s.main()
+                    if mode == 'plan':
+                        saved = json.loads((state / 'plan.json').read_text())['plan']
+                        self.assertEqual(saved['application_commit'], 'b' * 40)
+                        self.assertEqual(saved['source_commit'], SOURCE)
+                        self.assertTrue(all('new_version' in v for v in saved['old_versions'].values()))
+                self.assertTrue((state / 'complete.json').is_file())
+            writes = [op for _, op, _ in cloud.calls if op in ('put-object', 'create-change-set', 'execute-change-set')]
+            self.assertEqual(writes, ['create-change-set', 'execute-change-set'])
+            self.assertEqual(cloud.current, p['phase2'])
+
+    def test_phase1_alias_read_failure_or_version_hash_mismatch_never_writes(self):
+        for failure in ('get-alias', 'hash'):
+            p = plan()
+            cloud = Cloud(p)
+            cloud.phase, cloud.current = 1, copy.deepcopy(p['phase1'])
+            def aws(service, operation, **kwargs):
+                if failure == 'get-alias' and operation == 'get-alias':
+                    raise subprocess.CalledProcessError(255, 'aws', stderr='AccessDenied')
+                result = cloud.aws(service, operation, **kwargs)
+                if failure == 'hash' and operation == 'get-function-configuration' and kwargs.get('qualifier') not in (
+                        '$LATEST', None, *[v['version'] for v in p['old_versions'].values()]):
+                    result['CodeSha256'] = 'incorrect'
+                return result
+            r = s.Runner(aws, sleep=lambda _: None)
+            r.controls = lambda _: None
+            continued = s.phase1_plan(p['source'], p['phase1'], p['asset'], p['old_versions'], SOURCE)
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as temporary, self.assertRaises((ValueError, subprocess.CalledProcessError)):
+                r.deploy({'directory': Path(temporary), 'plan': continued}, {})
+            self.assertFalse(any(op in ('put-object', 'create-change-set', 'execute-change-set') for _, op, _ in cloud.calls))
+
+    def test_completed_phase1_creates_and_executes_only_new_phase2(self):
+        p = plan()
+        r, cloud = runner(p)
+        cloud.phase, cloud.current = 1, copy.deepcopy(p['phase1'])
+        old = r.observe(p['phase1'], versions=p['versions'])
+        continued = s.phase1_plan(p['source'], p['phase1'], p['asset'], old, SOURCE)
+        self.assertEqual(continued['phase2'], p['phase2'])
+        cloud.p = continued
+        with tempfile.TemporaryDirectory() as temporary:
+            r.deploy({'directory': Path(temporary), 'plan': continued}, {})
+        self.assertEqual(cloud.current, p['phase2'])
+        writes = [(op, kw) for _, op, kw in cloud.calls if op in ('put-object', 'create-change-set', 'execute-change-set')]
+        self.assertEqual([op for op, _ in writes], ['create-change-set', 'execute-change-set'])
+        self.assertEqual(writes[0][1]['change_set_name'], s.operation_name(SOURCE, 2))
+        self.assertEqual(continued['ready_versions'], {fid: str(int(v['version'])+1) for fid, v in p['old_versions'].items()})
+
+    def test_phase1_recognition_rejects_wrong_artifact_extra_versions_and_scope(self):
+        p = plan()
+        cases = []
+        altered = copy.deepcopy(p['phase1'])
+        altered['Resources'][next(iter(j.FUNCTIONS))]['Properties']['Code']['S3ObjectVersion'] = 'other'
+        cases.append(altered)
+        altered = copy.deepcopy(p['phase1'])
+        altered['Resources']['ExtraVersion'] = copy.deepcopy(next(v for v in altered['Resources'].values() if v['Type'] == 'AWS::Lambda::Version'))
+        cases.append(altered)
+        altered = copy.deepcopy(p['phase1'])
+        altered['Resources'][next(iter(j.FUNCTIONS))]['Properties']['Timeout'] = 999
+        cases.append(altered)
+        altered = copy.deepcopy(p['phase1'])
+        altered['Resources'][next(iter(p['versions'].values()))['new_logical']]['Properties']['CodeSha256'] = 'bad'
+        cases.append(altered)
+        for live in cases + [p['baseline'], p['phase2']]:
+            with self.subTest(live=cases.index(live) if live in cases else 'not-phase1'), self.assertRaises((ValueError, KeyError)):
+                s.phase1_plan(p['source'], live, p['asset'], p['old_versions'], SOURCE)
+        with self.assertRaises(ValueError):
+            s.phase1_plan(p['source'], p['phase1'], {**p['asset'], 'sha256_base64': 'wrong'}, p['old_versions'], SOURCE)
+
+    def test_phase1_continuation_still_rejects_not_ready_or_prior_operation(self):
+        p = plan()
+        r, cloud = runner(p)
+        cloud.phase, cloud.current = 1, copy.deepcopy(p['phase1'])
+        old = r.observe(p['phase1'], versions=p['versions'])
+        continued = s.phase1_plan(p['source'], p['phase1'], p['asset'], old, SOURCE)
+        cloud.not_ready = True
+        with tempfile.TemporaryDirectory() as temporary, self.assertRaises(ValueError):
+            r.deploy({'directory': Path(temporary), 'plan': continued}, {})
+        cloud.not_ready = False
+        cloud.sets[s.operation_name(SOURCE, 2)] = {'ChangeSetId': 'existing'}
+        with tempfile.TemporaryDirectory() as temporary, self.assertRaises(ValueError):
+            r.deploy({'directory': Path(temporary), 'plan': continued}, {})
+        self.assertFalse(any(op in ('put-object', 'create-change-set', 'execute-change-set') for _, op, _ in cloud.calls))
+
+    def test_stack_waiter_ignores_deleted_changeset_and_checks_exact_template(self):
+        p = plan()
+        r, cloud = runner(p)
+        before = {'StackStatus': 'UPDATE_ROLLBACK_COMPLETE', 'LastUpdatedTime': 'old'}
+        states = [before, {'StackStatus': 'UPDATE_IN_PROGRESS', 'LastUpdatedTime': 'new'},
+                  {'StackStatus': 'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS', 'LastUpdatedTime': 'new'},
+                  {'StackStatus': 'UPDATE_COMPLETE', 'LastUpdatedTime': 'new'}]
+        r.stack = lambda: states.pop(0)
+        r.template = lambda: p['phase1']
+        r.describe = lambda _: self.fail('Must not poll a change set after execution')
+        self.assertEqual(r.wait_stack(p['phase1'], before)['StackStatus'], 'UPDATE_COMPLETE')
+
+    def test_stack_waiter_rejects_rollback_and_wrong_completed_template(self):
+        p = plan()
+        before = {'StackStatus': 'UPDATE_COMPLETE', 'LastUpdatedTime': 'old'}
+        for status in ('UPDATE_ROLLBACK_IN_PROGRESS', 'UPDATE_ROLLBACK_COMPLETE',
+                       'UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS', 'UPDATE_ROLLBACK_FAILED',
+                       'DELETE_IN_PROGRESS', 'UPDATE_COMPLETE'):
+            r, _ = runner(p)
+            r.stack = lambda status=status: {'StackStatus': status, 'LastUpdatedTime': 'new'}
+            r.template = lambda: p['baseline']
+            with self.subTest(status=status), self.assertRaises(ValueError):
+                r.wait_stack(p['phase1'], before)
+
+    def test_stack_waiter_never_accepts_stale_baseline_or_timeout_as_success(self):
+        p = plan()
+        r, _ = runner(p)
+        before = {'StackStatus': 'UPDATE_COMPLETE', 'LastUpdatedTime': 'old'}
+        r.stack = lambda: before
+        r.template = lambda: p['baseline']
+        with self.assertRaisesRegex(ValueError, 'still pending'):
+            r.wait_stack(p['phase1'], before)
+
+    def test_completed_rollback_requires_exact_baseline_and_ready_runtime(self):
+        p = plan()
+        r, cloud = runner(p)
+        original = r.stack
+        r.stack = lambda: {**original(), 'StackStatus': 'UPDATE_ROLLBACK_COMPLETE'}
+        r.fresh(SOURCE)
+        self.assertEqual(set(r.observe(p['baseline'])), set(j.FUNCTIONS))
+        changed = copy.deepcopy(p['baseline'])
+        changed['Description'] = 'unexpected drift'
+        with self.assertRaises(ValueError):
+            r.observe(changed)
+        cloud.phase = 1  # Latest code no longer equals the old published version.
+        with self.assertRaises(ValueError):
+            r.observe(p['baseline'])
+
+    def test_incomplete_failed_or_cleanup_stack_never_retried(self):
+        p = plan()
+        for status in ('UPDATE_IN_PROGRESS', 'UPDATE_ROLLBACK_IN_PROGRESS',
+                       'UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS', 'UPDATE_ROLLBACK_FAILED',
+                       'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS', 'ROLLBACK_COMPLETE'):
+            r, _ = runner(p)
+            r.stack = lambda status=status: {'StackStatus': status}
+            with self.subTest(status=status):
+                with self.assertRaises(ValueError):
+                    r.fresh(SOURCE)
+                with self.assertRaises(ValueError):
+                    r.observe(p['baseline'])
+
+    def test_rollback_complete_does_not_bypass_existing_operation_gate(self):
+        p = plan()
+        r, cloud = runner(p)
+        original = r.stack
+        r.stack = lambda: {**original(), 'StackStatus': 'UPDATE_ROLLBACK_COMPLETE'}
+        cloud.sets[s.operation_name(SOURCE, 1)] = changes(p, 1)
+        with self.assertRaisesRegex(ValueError, 'Prior source operation exists'):
+            r.fresh(SOURCE)
+
     def test_plan_is_only_code_versions_aliases_and_preserves_metadata(self):
         p = plan()
         for phase in ('phase1', 'phase2'):
@@ -181,6 +354,22 @@ class SimpleDeploy(unittest.TestCase):
         self.assertEqual({v['version'] for v in old.values()}, {'101', '207'})
         self.assertNotIn('must-not-be-persisted', json.dumps(old))
         self.assertTrue(all('configuration_sha256' in v for v in old.values()))
+
+    def test_full_release_succeeds_when_executed_change_sets_disappear(self):
+        p = plan()
+        cloud = Cloud(p)
+        def aws(service, operation, **arguments):
+            response = cloud.aws(service, operation, **arguments)
+            if operation == 'execute-change-set':
+                cloud.sets.clear()
+            return response
+        r = s.Runner(aws, sleep=lambda _: None)
+        r.controls = lambda _: None
+        with tempfile.TemporaryDirectory() as temporary:
+            r.deploy({'directory': Path(temporary), 'plan': p}, {})
+            self.assertTrue((Path(temporary) / 'complete.json').exists())
+        self.assertEqual(cloud.current, p['phase2'])
+        self.assertEqual([x[1] for x in cloud.calls].count('execute-change-set'), 2)
 
     def test_full_fake_release_has_two_creates_and_executes_and_one_jar(self):
         p = plan()
@@ -322,6 +511,7 @@ class SimpleDeploy(unittest.TestCase):
                  'ref': 'refs/heads/main', 'after': SOURCE}
         with patch.dict(os.environ, env), patch.object(d, 'java_active', return_value={}), \
                 patch.object(d, 'load', return_value=event), \
+                patch('select_application.select', return_value=(Path('.'), SOURCE)), \
                 patch.object(s.subprocess, 'check_output', return_value=SOURCE + '\n') as git:
             self.assertEqual(s.context()[1], SOURCE)
             self.assertEqual(git.call_args.args[0], ['git', 'rev-parse', 'HEAD'])
@@ -338,6 +528,7 @@ class SimpleDeploy(unittest.TestCase):
                  'ref': 'refs/heads/main', 'after': SOURCE}
         with patch.dict(os.environ, env), patch.object(d, 'java_active', return_value={}), \
                 patch.object(d, 'load', return_value=event), \
+                patch('select_application.select', return_value=(Path('.'), SOURCE)), \
                 patch.object(s.subprocess, 'check_output', return_value=SOURCE + '\n'):
             for attempt in ('1', '2', '17'):
                 os.environ['GITHUB_RUN_ATTEMPT'] = attempt
@@ -373,3 +564,4 @@ class SimpleDeploy(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
