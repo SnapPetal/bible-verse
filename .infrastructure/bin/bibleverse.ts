@@ -2,19 +2,11 @@
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import {BibleVerseStack} from "../lib/bibleverse-stack";
-import {GithubOidcStack} from "../lib/github-oidc-stack";
 
 const env = {account: '664759038511', region: 'us-east-1'};
 
 const app = new cdk.App();
+// GitHubActionsBibleVerseProdDeploy was released from bible-verse-github-oidc-stack
+// on 2026-11-14 and imported into home-web's github-deploy-access app
+// (stack bible-verse-entry-stack). Do not synthesize that role here.
 new BibleVerseStack(app, 'bible-verse-stack', {env});
-
-new GithubOidcStack(app, 'bible-verse-github-oidc-stack', {
-    env,
-    terminationProtection: true,
-    repository: 'SnapPetal/bible-verse',
-    repositoryIds: {ownerId: '6395602', repoId: '395871434'},
-    environment: 'production',
-    roleName: 'GitHubActionsBibleVerseProdDeploy',
-    providerArn: 'arn:aws:iam::664759038511:oidc-provider/token.actions.githubusercontent.com',
-});

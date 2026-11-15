@@ -38,7 +38,7 @@ Serverless REST API returning random Bible verses in CSB (English) and Greek tra
 
 ## CI/CD
 
-The proposed ordinary application workflow is `.github/workflows/java-release.yml`: main push or no-input manual run, using tools from `mise.toml`, a private immutable JAR upload and app-only CloudFormation changes through dedicated Bible roles. The legacy `deploy.yml` is retired. Do not use `cdk deploy --all` for this scoped path or deploy the OIDC/control stacks from it. This local proposal is not authorization to publish, activate or release.
+The proposed ordinary application workflow is `.github/workflows/java-release.yml`: main push or no-input manual run, using tools from `mise.toml`, a private immutable JAR upload and app-only CloudFormation changes through dedicated Bible roles. The legacy `deploy.yml` is retired. Do not use `cdk deploy --all` for this scoped path. The GitHub deploy role `GitHubActionsBibleVerseProdDeploy` now lives in home-web's github-deploy-access app (CloudFormation stack `bible-verse-entry-stack`); this repo must not recreate it. This local proposal is not authorization to publish, activate or release.
 
 ## Code Formatting
 
