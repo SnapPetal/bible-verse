@@ -13,3 +13,7 @@ The `cdk.json` file tells the CDK Toolkit how to execute your app.
 * `pnpm cdk diff`   compare deployed stack with current state
 * `pnpm cdk synth`  emits the synthesized CloudFormation template
 
+## GitHub deploy role
+
+`GitHubActionsBibleVerseProdDeploy` is not part of this CDK app. On 2026-11-14 it was released from `bible-verse-github-oidc-stack` (the role was retained, then imported) and now lives in home-web's github-deploy-access app, stack `bible-verse-entry-stack`. The old stack holds only CDKMetadata. Synthesizing a replacement role with that name fails because the role already exists.
+

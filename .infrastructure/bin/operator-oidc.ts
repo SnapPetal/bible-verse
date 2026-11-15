@@ -1,17 +1,10 @@
 #!/usr/bin/env node
 // Operator-only: never called by the application workflow.
+// GitHubActionsBibleVerseProdDeploy was released from bible-verse-github-oidc-stack
+// on 2026-11-14 (Retain, so the role stayed live) and imported into home-web's
+// github-deploy-access app (stack bible-verse-entry-stack). The leftover stack
+// holds only CDKMetadata. Do not recreate the role; the name already exists.
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import {GithubOidcStack} from '../lib/github-oidc-stack';
-const app = new cdk.App();
-const env = {account: '664759038511', region: 'us-east-1'};
-new GithubOidcStack(app, 'bible-verse-github-oidc-stack', {
-    env,
-    terminationProtection: true,
-    repository: 'SnapPetal/bible-verse',
-    repositoryIds: {ownerId: '6395602', repoId: '395871434'},
-    environment: 'production',
-    roleName: 'GitHubActionsBibleVerseProdDeploy',
-    providerArn: 'arn:aws:iam::664759038511:oidc-provider/token.actions.githubusercontent.com',
-});
 
+new cdk.App();

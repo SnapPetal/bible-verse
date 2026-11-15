@@ -160,7 +160,7 @@ The project uses several tools to maintain code quality:
 
 ### CI/CD
 
-GitHub Actions installs the toolchain from `mise.toml` with `jdx/mise-action`, then deploys on pushes to `main`. AWS authentication uses GitHub OIDC and the `AWS_ROLE_TO_ASSUME` repository secret, which points to the deploy role ARN. The pnpm version in `mise.toml` matches `packageManager` in `.infrastructure/package.json`.
+GitHub Actions installs the toolchain from `mise.toml` with `jdx/mise-action`, then deploys on pushes to `main`. AWS authentication uses GitHub OIDC. The deploy role `GitHubActionsBibleVerseProdDeploy` lives in home-web's github-deploy-access app (CloudFormation stack `bible-verse-entry-stack`); `AWS_ROLE_TO_ASSUME` points at that role ARN. The pnpm version in `mise.toml` matches `packageManager` in `.infrastructure/package.json`.
 
 ### Project Structure
 
